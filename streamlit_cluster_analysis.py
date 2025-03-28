@@ -136,3 +136,34 @@ for cluster_label, cluster_data in grouped_gmm:
     ax.set_ylabel("Spending Score")
     st.pyplot(fig)
     st.write("-" * 50)
+
+# Group data by cluster and sort by mean Spending_Score in descending order for Cluster_gmm
+cluster_spending_gmm = df.groupby('Cluster_gmm')['Spending_Score_original'].mean().sort_values(ascending=False)
+
+# Display cluster ranking for GMM
+st.title("📊 Cluster Ranking by Mean Spending Score (GMM Clusters)")
+st.write("Cluster Ranking by Mean Spending Score:")
+for cluster, mean_spending in cluster_spending_gmm.items():
+    st.write(f"Cluster {cluster}: {mean_spending:.2f}")
+
+# Further analysis to show age distribution within each GMM cluster
+for cluster_label in cluster_spending_gmm.index:
+    cluster_data = df[df['Cluster_gmm'] == cluster_label]
+    st.subheader(f"Age Distribution for Cluster {cluster_label}")
+    st.write(cluster_data['Age_original'].describe())
+
+# Group data by cluster and sort by mean Spending_Score in descending order for Cluster_k
+cluster_spending_kmeans = df.groupby('Cluster_k')['Spending_Score_original'].mean().sort_values(ascending=False)
+
+# Display cluster ranking for KMeans
+st.title("📊 Cluster Ranking by Mean Spending Score (K-Means Clusters)")
+st.write("Cluster Ranking by Mean Spending Score:")
+for cluster, mean_spending in cluster_spending_kmeans.items():
+    st.write(f"Cluster {cluster}: {mean_spending:.2f}")
+
+# Further analysis to show age distribution within each KMeans cluster
+for cluster_label in cluster_spending_kmeans.index:
+    cluster_data = df[df['Cluster_k'] == cluster_label]
+    st.subheader(f"Age Distribution for Cluster {cluster_label}")
+    st.write(cluster_data['Age_original'].describe())
+
