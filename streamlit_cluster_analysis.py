@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.cluster import KMeans
 
 # Load dataset (Modify to your actual dataset loading method)
 @st.cache_data
@@ -95,3 +96,43 @@ for feature in features:
     plt.ylabel(feature)
     st.pyplot(plt)  # Display the plot in Streamlit
     plt.clf()  # Clear the figure after displaying to prevent overlap
+
+# GMM to K-Means Sub-clustering Analysis
+# Group data by the GMM clusters
+grouped_gmm = df.groupby('Cluster_gmm')
+
+# Define a colormap for better visualization
+colormap = sns.color_palette("husl", 2)  # Adjust number of colors for sub-clusters
+
+# Iterate through each GMM cluster
+for cluster_label, cluster_data in grouped_gmm:
+    st.subheader(f"GMM Cluster {cluster_label}: Sub-Clustering Analysis")
+    
+    # Use the original dataset for sub-clustering
+    X_cluster = df.iloc[cluster_data.index][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
+    
+    # Apply K-means to the current GMM cluster using original data
+    kmeans_sub = KMeans(n_clusters=2, random_state=42)  # Example: Divide into 2 sub-clusters
+    sub_cluster_labels = kmeans_sub.fit_predict(X_cluster)
+    
+    # Add sub-cluster labels to the original DataFrame 'df'
+    df.loc[cluster_data.index, 'Sub_Cluster_k'] = sub_cluster_labels
+    
+    # Analyze the sub-clusters and display mean
+    st.write(f"Sub-cluster analysis (mean values):")
+    st.write(X_cluster.groupby(sub_cluster_labels).mean())
+    
+    # Visualization of sub-clusters within the GMM cluster
+    fig, ax = plt.subplots(figsize=(6, 4))
+    sns.scatterplot(
+        x=X_cluster['Annual_Income (£K)_original'], 
+        y=X_cluster['Spending_Score_original'], 
+        hue=sub_cluster_labels, 
+        palette=colormap, 
+        legend="full", ax=ax
+    )
+    ax.set_title(f"Sub-Clusters within GMM Cluster {cluster_label} (Original Data)")
+    ax.set_xlabel("Annual Income (£K)")
+    ax.set_ylabel("Spending Score")
+    st.pyplot(fig)
+    st.write("-" * 50)
