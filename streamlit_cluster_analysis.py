@@ -103,3 +103,16 @@ for feature in features:
     plt.ylabel(feature)
     st.pyplot(plt)  # Display the plot in Streamlit
     plt.clf()  # Clear the figure after displaying to prevent overlap
+
+# Boxplots for feature distribution across GMM clusters
+st.title("📊 Feature Distribution Across k Clusters")
+
+features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
+for feature in features:
+    plt.figure(figsize=(8, 5))
+    sns.boxplot(x=df['Cluster_k'], y=df[feature], palette="husl")
+    plt.title(f"{feature} Distribution Across GMM Clusters")
+    plt.xlabel("GMM Cluster")
+    plt.ylabel(feature)
+    st.pyplot(plt)  # Display the plot in Streamlit
+    plt.clf()  # Clear the figure after displaying to prevent overlap
