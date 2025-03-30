@@ -103,15 +103,3 @@ for feature in features:
     plt.ylabel(feature)
     st.pyplot(plt)  # Display the plot in Streamlit
     plt.clf()  # Clear the figure after displaying to prevent overlap
-
-# Boxplots for feature distribution across K-Means clusters
-st.title("📊 Feature Distribution Across K-Means Clusters")
-
-for feature in features:
-    plt.figure(figsize=(8, 5))
-    sns.boxplot(x=df['Cluster_k'], y=df[feature], palette="husl")
-    plt.title(f"{feature} Distribution Across K-Means Clusters")
-    plt.xlabel("K-Means Cluster")
-    plt.ylabel(feature)
-    st.pyplot(plt)  # Display the plot in Streamlit
-    plt.clf()  # Clear the figure after displaying to prevent overlap
