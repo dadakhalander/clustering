@@ -110,7 +110,8 @@ def plot_feature_distribution(cluster_type):
 st.title("📊 Cluster Analysis: Spending, Income & Gender Distribution")
 
 # Select cluster type (GMM or K-Means)
-cluster_type = st.sidebar.selectbox("Select Cluster Type", ["Cluster_gmm", "Cluster_k"])
+cluster_type = st.sidebar.selectbox("Select Cluster Type", ["Cluster_gmm", "Cluster_k"], key="cluster_type_selectbox")
+
 
 # Plot feature distribution across selected cluster type
 plot_feature_distribution(cluster_type)
