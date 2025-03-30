@@ -16,6 +16,14 @@ st.title("📊 Cluster Analysis: Spending, Income & Gender Distribution")
 # Select cluster type (GMM or K-Means)
 cluster_type = st.sidebar.selectbox("Select Cluster Type", ["Cluster_gmm", "Cluster_k"])
 
+# Group data by cluster and sort by mean Spending_Score in descending order
+cluster_spending = df.groupby(cluster_type)['Spending_Score_original'].mean().sort_values(ascending=False)
+
+# Print the cluster rankings
+st.subheader("Cluster Ranking by Mean Spending Score:")
+for cluster, mean_spending in cluster_spending.items():
+    st.write(f"Cluster {cluster}: {mean_spending:.2f}")
+
 # Get unique clusters
 clusters = sorted(df[cluster_type].unique())
 
