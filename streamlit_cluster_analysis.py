@@ -91,28 +91,22 @@ for cluster_label in clusters:
     # Add a separator for better readability
     st.write("-" * 50)
 
-# Boxplots for feature distribution across GMM clusters
-st.title("📊 Feature Distribution Across GMM Clusters")
 
+# Streamlit App Title
+st.title("📊 Feature Distribution Across Clusters")
+
+# Define features to analyze
 features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
-for feature in features:
-    plt.figure(figsize=(8, 5))
-    sns.boxplot(x=df['Cluster_gmm'], y=df[feature], palette="husl")
-    plt.title(f"{feature} Distribution Across GMM Clusters")
-    plt.xlabel("GMM Cluster")
-    plt.ylabel(feature)
-    st.pyplot(plt)  # Display the plot in Streamlit
-    plt.clf()  # Clear the figure after displaying to prevent overlap
 
-# Boxplots for feature distribution across GMM clusters
-st.title("📊 Feature Distribution Across k Clusters")
-
-features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
-for feature in features:
-    plt.figure(figsize=(8, 5))
-    sns.boxplot(x=df['Cluster_k'], y=df[feature], palette="husl")
-    plt.title(f"{feature} Distribution Across GMM Clusters")
-    plt.xlabel("GMM Cluster")
-    plt.ylabel(feature)
-    st.pyplot(plt)  # Display the plot in Streamlit
-    plt.clf()  # Clear the figure after displaying to prevent overlap
+# Create boxplots for GMM and K-Means clusters
+for cluster_type, cluster_name in zip(['Cluster_gmm', 'Cluster_k'], ['GMM', 'K-Means']):
+    st.subheader(f"📊 Feature Distribution Across {cluster_name} Clusters")
+    
+    for feature in features:
+        plt.figure(figsize=(8, 5))
+        sns.boxplot(x=df[cluster_type], y=df[feature], palette="husl")
+        plt.title(f"{feature} Distribution Across {cluster_name} Clusters")
+        plt.xlabel(f"{cluster_name} Cluster")
+        plt.ylabel(feature)
+        st.pyplot(plt)  # Display the plot in Streamlit
+        plt.clf()  # Clear the figure after displaying to prevent overlap
