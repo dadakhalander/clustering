@@ -91,25 +91,32 @@ for cluster_label in clusters:
     # Add a separator for better readability
     st.write("-" * 50)
 
-# Assuming df is your DataFrame containing the clusters and the features
-features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
+# Function to create boxplots for feature distribution based on cluster type
+def plot_feature_distribution(cluster_type):
+    # Dynamically setting the title based on the cluster type
+    if cluster_type == "Cluster_gmm":
+        st.title("📊 Feature Distribution Across GMM Clusters")
+    else:
+        st.title("📊 Feature Distribution Across K-Means Clusters")
 
-# Title for the app
-st.title("📊 Feature Distribution Across Clusters")
-
-# Function to create boxplots
-def plot_boxplots(cluster_col, cluster_name):
+    features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
     for feature in features:
         plt.figure(figsize=(8, 5))
-        sns.boxplot(x=df[cluster_col], y=df[feature], palette="husl")
-        plt.title(f"{feature} Distribution Across {cluster_name} Clusters")
-        plt.xlabel(f"{cluster_name} Cluster")
+        sns.boxplot(x=df[cluster_type], y=df[feature], palette="husl")
+        plt.title(f"{feature} Distribution Across {cluster_type} Clusters")
+        plt.xlabel(f"{cluster_type} Cluster")
         plt.ylabel(feature)
         st.pyplot(plt)  # Display the plot in Streamlit
         plt.clf()  # Clear the figure after displaying to prevent overlap
 
-# Boxplots for feature distribution across GMM clusters
-plot_boxplots('Cluster_gmm', 'GMM')
+# Streamlit App Title
+st.title("📊 Cluster Analysis: Spending, Income & Gender Distribution")
 
-# Boxplots for feature distribution across K-Means clusters
-plot_boxplots('Cluster_k', 'K-Means')
+# Select cluster type (GMM or K-Means)
+cluster_type = st.sidebar.selectbox("Select Cluster Type", ["Cluster_gmm", "Cluster_k"])
+
+# Display which method was called
+st.write(f"Method Called: {cluster_type}")
+
+# Plot feature distribution across selected cluster type
+plot_feature_distribution(cluster_type)
