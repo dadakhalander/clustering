@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.cluster import KMeans
 
 # Load dataset (Modify to your actual dataset loading method)
 @st.cache_data
@@ -96,12 +95,3 @@ for feature in features:
     plt.ylabel(feature)
     st.pyplot(plt)  # Display the plot in Streamlit
     plt.clf()  # Clear the figure after displaying to prevent overlap
-
-# GMM Clusters Analysis (mean Spending Score)
-cluster_spending_gmm = df.groupby('Cluster_gmm')['Spending_Score_original'].mean().sort_values(ascending=False)
-
-# Display cluster ranking for GMM
-st.title("📊 Cluster Ranking by Mean Spending Score (GMM Clusters)")
-st.write("Cluster Ranking by Mean Spending Score:")
-for cluster, mean_spending in cluster_spending_gmm.items():
-    st.write(f"Cluster {cluster}: {mean_spending:.2f}")
