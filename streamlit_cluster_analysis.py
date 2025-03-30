@@ -92,21 +92,25 @@ for cluster_label in clusters:
     st.write("-" * 50)
 
 
-# Streamlit App Title
-st.title("📊 Feature Distribution Across Clusters")
+# Function to create boxplots for feature distribution based on cluster type
+def plot_feature_distribution(cluster_type):
+    st.title(f"📊 Feature Distribution Across {cluster_type} Clusters")
 
-# Define features to analyze
-features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
-
-# Create boxplots for GMM and K-Means clusters
-for cluster_type, cluster_name in zip(['Cluster_gmm', 'Cluster_k'], ['GMM', 'K-Means']):
-    st.subheader(f"📊 Feature Distribution Across {cluster_name} Clusters")
-    
+    features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
     for feature in features:
         plt.figure(figsize=(8, 5))
         sns.boxplot(x=df[cluster_type], y=df[feature], palette="husl")
-        plt.title(f"{feature} Distribution Across {cluster_name} Clusters")
-        plt.xlabel(f"{cluster_name} Cluster")
+        plt.title(f"{feature} Distribution Across {cluster_type} Clusters")
+        plt.xlabel(f"{cluster_type} Cluster")
         plt.ylabel(feature)
         st.pyplot(plt)  # Display the plot in Streamlit
         plt.clf()  # Clear the figure after displaying to prevent overlap
+
+# Streamlit App Title
+st.title("📊 Cluster Analysis: Spending, Income & Gender Distribution")
+
+# Select cluster type (GMM or K-Means)
+cluster_type = st.sidebar.selectbox("Select Cluster Type", ["Cluster_gmm", "Cluster_k"])
+
+# Plot feature distribution across selected cluster type
+plot_feature_distribution(cluster_type)
