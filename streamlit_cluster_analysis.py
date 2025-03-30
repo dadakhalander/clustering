@@ -97,16 +97,28 @@ features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_orig
 # Title for the app
 st.title("📊 Feature Distribution Across Clusters")
 
-# Function to create boxplots
+# Function to create boxplots for GMM and K-Means
 def plot_boxplots(cluster_col, cluster_name):
     for feature in features:
-        plt.figure(figsize=(8, 5))
-        sns.boxplot(x=df[cluster_col], y=df[feature], palette="husl")
-        plt.title(f"{feature} Distribution Across {cluster_name} Clusters")
-        plt.xlabel(f"{cluster_name} Cluster")
-        plt.ylabel(feature)
-        st.pyplot(plt.gcf())  # Display the plot in Streamlit using the current figure
-        plt.close()  # Close the figure to avoid overlap
+        # Initialize the figure
+        fig, ax = plt.subplots(figsize=(8, 5))
+        
+        # Check if the column exists
+        if cluster_col not in df.columns:
+            st.error(f"Error: '{cluster_col}' column not found in the DataFrame.")
+            return
+        
+        # Plot the boxplot
+        sns.boxplot(x=df[cluster_col], y=df[feature], palette="husl", ax=ax)
+        ax.set_title(f"{feature} Distribution Across {cluster_name} Clusters")
+        ax.set_xlabel(f"{cluster_name} Cluster")
+        ax.set_ylabel(feature)
+
+        # Display the plot using Streamlit
+        st.pyplot(fig)
+
+        # Close the figure to prevent overlap
+        plt.close(fig)
 
 # Boxplots for feature distribution across GMM clusters
 plot_boxplots('Cluster_gmm', 'GMM')
