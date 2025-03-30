@@ -91,39 +91,43 @@ for cluster_label in clusters:
     # Add a separator for better readability
     st.write("-" * 50)
 
-# Assuming df is your DataFrame containing the clusters and the features
+# Ensure that the required columns exist in df
 features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
+clusters = ['Cluster_gmm', 'Cluster_k']
 
-# Title for the app
+# Validate column existence
+missing_columns = [col for col in features + clusters if col not in df.columns]
+if missing_columns:
+    st.error(f"Error: The following required columns are missing from the DataFrame: {missing_columns}")
+    st.stop()
+
+# Title
 st.title("📊 Feature Distribution Across Clusters")
 
-# Function to create boxplots for GMM and K-Means
-def plot_boxplots(cluster_col, cluster_name):
-    for feature in features:
-        # Initialize the figure
-        fig, ax = plt.subplots(figsize=(8, 5))
-        
-        # Check if the column exists
-        if cluster_col not in df.columns:
-            st.error(f"Error: '{cluster_col}' column not found in the DataFrame.")
-            return
-        
-        # Plot the boxplot
-        sns.boxplot(x=df[cluster_col], y=df[feature], palette="husl", ax=ax)
-        ax.set_title(f"{feature} Distribution Across {cluster_name} Clusters")
-        ax.set_xlabel(f"{cluster_name} Cluster")
-        ax.set_ylabel(feature)
+# Loop through each feature and display its GMM and K-Means boxplots side by side
+for feature in features:
+    st.subheader(f"📌 {feature} Distribution Across Clusters")
 
-        # Display the plot using Streamlit
-        st.pyplot(fig)
+    # Create two columns for side-by-side visualization
+    col1, col2 = st.columns(2)
 
-        # Close the figure to prevent overlap
-        plt.close(fig)
+    # Plot GMM Feature Distribution
+    with col1:
+        st.subheader("GMM Cluster")
+        fig1, ax1 = plt.subplots(figsize=(6, 5))
+        sns.boxplot(x=df['Cluster_gmm'], y=df[feature], palette="husl", ax=ax1)
+        ax1.set_xlabel("GMM Cluster")
+        ax1.set_ylabel(feature)
+        st.pyplot(fig1)
+        plt.close(fig1)
 
-# Boxplots for feature distribution across GMM clusters
-plot_boxplots('Cluster_gmm', 'GMM')
-
-# Boxplots for feature distribution across K-Means clusters
-plot_boxplots('Cluster_k', 'K-Means')
-
+    # Plot K-Means Feature Distribution
+    with col2:
+        st.subheader("K-Means Cluster")
+        fig2, ax2 = plt.subplots(figsize=(6, 5))
+        sns.boxplot(x=df['Cluster_k'], y=df[feature], palette="husl", ax=ax2)
+        ax2.set_xlabel("K-Means Cluster")
+        ax2.set_ylabel(feature)
+        st.pyplot(fig2)
+        plt.close(fig2)
 
