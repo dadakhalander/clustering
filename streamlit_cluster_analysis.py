@@ -111,5 +111,4 @@ def plot_boxplots(cluster_col, cluster_name):
 # Boxplots for feature distribution across GMM clusters
 plot_boxplots('Cluster_gmm', 'GMM')
 
-# Boxplots for feature distribution across K-Means clusters
-plot_boxplots('Cluster_k', 'K-Means')
+
