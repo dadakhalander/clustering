@@ -141,14 +141,3 @@ for feature in ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_
         ax2.set_xlabel("K-Means Cluster")
         ax2.set_ylabel(feature)
         st.pyplot(fig2)
-
-# Final Notes
-st.markdown("---")
-st.info("""
-📌 **Use Cases:**
-- Identify high spenders with low income to target with discount promotions.
-- Offer premium services to high income, low spending clusters.
-- Monitor age-wise cluster behavior for seasonal targeting.
-""")
-
-st.caption("Built with ❤️ using Streamlit | Data source: clustering_results.csv")
