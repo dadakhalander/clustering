@@ -27,14 +27,23 @@ if missing_cols:
 # Sidebar Filters
 st.sidebar.header("🔍 Filter Options")
 cluster_type = st.sidebar.selectbox("📂 Select Clustering Method", ["Cluster_gmm", "Cluster_k"])
-age_range = st.sidebar.slider("🎂 Age Range Filter", int(df['Age_original'].min()), int(df['Age_original'].max()), (18, 70))
-income_range = st.sidebar.slider("💰 Income Range Filter (in £K)", int(df['Annual_Income (£K)_original'].min()), int(df['Annual_Income (£K)_original'].max()), (0, 150))
+
+st.sidebar.markdown("### 🎚️ Demographics Filters")
+min_age, max_age = int(df['Age_original'].min()), int(df['Age_original'].max())
+min_income, max_income = int(df['Annual_Income (£K)_original'].min()), int(df['Annual_Income (£K)_original'].max())
+
+age_range = st.sidebar.slider("🎂 Select Age Range", min_age, max_age, (25, 60))
+income_range = st.sidebar.slider("💰 Select Income Range (£K)", min_income, max_income, (20, 100))
 
 # Filter dataset
 df_filtered = df[
     (df['Age_original'] >= age_range[0]) & (df['Age_original'] <= age_range[1]) &
     (df['Annual_Income (£K)_original'] >= income_range[0]) & (df['Annual_Income (£K)_original'] <= income_range[1])
 ]
+
+# Display selected filters
+st.markdown(f"📊 Showing customers aged between **{age_range[0]} and {age_range[1]}** years "
+            f"with annual income between **£{income_range[0]}K and £{income_range[1]}K**.")
 
 # Cluster Summary Table
 st.header("📌 Cluster Ranking Based on Average Spending Score")
@@ -132,17 +141,6 @@ for feature in ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_
         ax2.set_xlabel("K-Means Cluster")
         ax2.set_ylabel(feature)
         st.pyplot(fig2)
-
-# Optional: Cluster Center Visualization (only if available)
-st.markdown("---")
-st.header("📍 Optional: Cluster Centers (If Available)")
-if 'Centroid_X' in df.columns and 'Centroid_Y' in df.columns:
-    fig_centers, ax_centers = plt.subplots(figsize=(6, 5))
-    sns.scatterplot(data=df_filtered, x='Centroid_X', y='Centroid_Y', hue=cluster_type, palette='tab10', s=100)
-    ax_centers.set_title("Visualized Cluster Centers")
-    st.pyplot(fig_centers)
-else:
-    st.info("ℹ️ Cluster center coordinates not available in this dataset.")
 
 # Final Notes
 st.markdown("---")
