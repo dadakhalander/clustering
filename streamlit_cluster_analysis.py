@@ -4,16 +4,13 @@ import joblib
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
-from sklearn.mixture import GaussianMixture
-from sklearn.metrics import pairwise_distances_argmin_min
-from sklearn.datasets import make_blobs
+from plotly.subplots import make_subplots
+from scipy.cluster.hierarchy import linkage, dendrogram
 import numpy as np
-from scipy.spatial.distance import cdist
-from sklearn.preprocessing import StandardScaler
 
 # ---- Load Pretrained Artifacts ----
 model = joblib.load("best_rf.pkl")
@@ -64,6 +61,66 @@ def apply_kmeans(X, k):
     kmeans = KMeans(n_clusters=k, init='k-means++', max_iter=300, n_init=10, random_state=42)
     kmeans.fit(X)
     return kmeans.labels_
+
+# ---- Function to Analyze New Customer ----
+def analyze_new_customer(new_data, model, X_train, cluster_info):
+    new_customer = pd.DataFrame([new_data])
+    new_customer = new_customer[X_train.columns]
+
+    new_customer['Gender_Female'] = new_customer['Gender_Female'].astype(int)
+    new_customer['Gender_Male'] = new_customer['Gender_Male'].astype(int)
+
+    predicted_cluster = model.predict(new_customer)[0]
+    st.subheader(f" Predicted Cluster: {predicted_cluster}")
+
+    similar_customers = cluster_info[predicted_cluster].copy()
+    similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
+    similar_customers['Gender_Male'] = similar_customers['Gender_Male'].astype(int)
+
+    sims = cosine_similarity(similar_customers[X_train.columns], new_customer)
+    most_similar_index = sims.argmax()
+    most_similar_customer = similar_customers.iloc[most_similar_index]
+
+    st.subheader(" Most Similar Customer in Cluster:")
+    st.dataframe(most_similar_customer[X_train.columns])
+
+    cluster_mean = similar_customers[X_train.columns].mean()
+    cluster_mean_max = cluster_mean.max()
+    new_customer_max = new_customer.max().values[0]
+
+    trace1 = go.Scatterpolar(
+        r=cluster_mean,
+        theta=X_train.columns,
+        name='Cluster Mean',
+        line=dict(color='royalblue', width=3),
+        fill='toself',
+        fillcolor='rgba(65, 105, 225, 0.3)',
+        opacity=0.8
+    )
+
+    trace2 = go.Scatterpolar(
+        r=new_customer.values[0],
+        theta=X_train.columns,
+        name='New Customer',
+        line=dict(color='darkorange', width=3),
+        fill='toself',
+        fillcolor='rgba(255, 140, 0, 0.3)',
+        opacity=0.8
+    )
+
+    fig = go.Figure(data=[trace1, trace2])
+    fig.update_layout(
+        title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1]),
+            angularaxis=dict(tickmode='array', tickvals=list(range(len(X_train.columns))), ticktext=X_train.columns)
+        ),
+        template="plotly_dark",
+        font=dict(family="Arial, sans-serif", size=12, color="white"),
+        showlegend=True
+    )
+
+    st.plotly_chart(fig)
 
 # ---- Streamlit App UI ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
