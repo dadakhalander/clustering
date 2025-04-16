@@ -277,15 +277,16 @@ elif section == "Custom Clustering":
     st.subheader("Cluster Results")
     st.write(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original', 'Custom_Cluster']].head())
 
-    fig = px.scatter_3d(df, 
+   fig = px.scatter_3d(df, 
                     x='Age_original', 
                     y='Annual_Income (£K)_original', 
                     z='Spending_Score_original',
                     color=df['Custom_Cluster'].astype(str), 
                     title="Custom Clustering Visualization (Animated)",
-                    animation_frame='Age_original',  # Animation based on age
+                    animation_frame='Custom_Cluster',  # Animation based on clusters
                     range_x=[df['Age_original'].min(), df['Age_original'].max()],
                     range_y=[df['Annual_Income (£K)_original'].min(), df['Annual_Income (£K)_original'].max()],
                     range_z=[df['Spending_Score_original'].min(), df['Spending_Score_original'].max()])
 st.plotly_chart(fig)
+
 
