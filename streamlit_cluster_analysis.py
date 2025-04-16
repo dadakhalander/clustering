@@ -164,7 +164,7 @@ if section == "Cluster Analysis":
     cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
     st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
 
-    st.subheader("👥 Cluster Sizes")
+    st.subheader(" Cluster Sizes")
     cluster_counts = df_filtered['Active_Cluster'].value_counts().sort_index()
     fig_bar, ax_bar = plt.subplots(figsize=(6, 4))
     sns.barplot(x=cluster_counts.index, y=cluster_counts.values, palette="Set2", ax=ax_bar)
