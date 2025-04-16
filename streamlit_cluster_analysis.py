@@ -4,63 +4,16 @@ import joblib
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.preprocessing import StandardScaler
 from plotly.subplots import make_subplots
+from sklearn.cluster import AgglomerativeClustering, DBSCAN
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from scipy.cluster.hierarchy import linkage, dendrogram
-import numpy as np
 
 # ---- Load Pretrained Artifacts ----
 model = joblib.load("best_rf.pkl")
 X_train = joblib.load("X_train.pkl")
 cluster_k_info = joblib.load("cluster_k_info.pkl")
-
-# ---- Elbow Method Function ----
-def elbow_method(X, max_k=10):
-    wcss = []
-    for k in range(1, max_k+1):
-        kmeans = KMeans(n_clusters=k, init='k-means++', max_iter=300, n_init=10, random_state=42)
-        kmeans.fit(X)
-        wcss.append(kmeans.inertia_)
-    return wcss
-
-# ---- Silhouette Score Function ----
-def silhouette_method(X, max_k=10):
-    silhouette_avg = []
-    for k in range(2, max_k+1):
-        kmeans = KMeans(n_clusters=k, init='k-means++', max_iter=300, n_init=10, random_state=42)
-        cluster_labels = kmeans.fit_predict(X)
-        silhouette_avg.append(silhouette_score(X, cluster_labels))
-    return silhouette_avg
-
-# ---- Gap Statistic Function ----
-def gap_statistic(X, max_k=10, n_ref=10):
-    gaps = []
-    for k in range(1, max_k+1):
-        # Perform K-means on original data
-        kmeans = KMeans(n_clusters=k, init='k-means++', max_iter=300, n_init=10, random_state=42)
-        kmeans.fit(X)
-        W_k = kmeans.inertia_
-        
-        # Create random reference datasets
-        gaps_k = []
-        for _ in range(n_ref):
-            random_data = np.random.uniform(low=X.min(axis=0), high=X.max(axis=0), size=X.shape)
-            kmeans_ref = KMeans(n_clusters=k, init='k-means++', max_iter=300, n_init=10, random_state=42)
-            kmeans_ref.fit(random_data)
-            W_k_ref = kmeans_ref.inertia_
-            gaps_k.append(np.log(W_k_ref) - np.log(W_k))
-        
-        gaps.append(np.mean(gaps_k))
-    return gaps
-
-# ---- Function to Apply K-Means and Display Clusters ----
-def apply_kmeans(X, k):
-    kmeans = KMeans(n_clusters=k, init='k-means++', max_iter=300, n_init=10, random_state=42)
-    kmeans.fit(X)
-    return kmeans.labels_
 
 # ---- Function to Analyze New Customer ----
 def analyze_new_customer(new_data, model, X_train, cluster_info):
@@ -124,88 +77,158 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
 # ---- Streamlit App UI ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
-st.title("Customer Segmentation Analysis Dashboard")
+st.title(" Customer Segmentation Analysis Dashboard")
 
 # ---- Sidebar Navigation ----
-section = st.sidebar.radio("Choose Section", ["Cluster Analysis", "Analyze New Customer Data", "Auto-ML for Optimal Clusters"])
+section = st.sidebar.radio(" Choose Section", ["Cluster Analysis", "Analyze New Customer Data"])
 
-if section == "Auto-ML for Optimal Clusters":
-    st.header("Auto-ML for Optimal Cluster Count")
+if section == "Cluster Analysis":
+    st.header("Cluster Analysis with Existing Data")
 
-    # Load the dataset
-    @st.cache
+    @st.cache_data
     def load_data():
         return pd.read_csv("clustering_results.csv")
 
     df = load_data()
-    
-    # Extract relevant features
-    X = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
-    X_scaled = StandardScaler().fit_transform(X)
-    
-    st.markdown("### Explore Optimal K using different methods")
-    max_k = st.slider("Max K to Explore", 2, 15, 10)
 
-    # Elbow Method Visualization
-    wcss = elbow_method(X_scaled, max_k)
-    fig_elbow = go.Figure()
-    fig_elbow.add_trace(go.Scatter(x=list(range(1, max_k+1)), y=wcss, mode='lines+markers', name='WCSS'))
-    fig_elbow.update_layout(
-        title="Elbow Method - K vs WCSS",
-        xaxis_title="Number of Clusters (K)",
-        yaxis_title="WCSS (Within-Cluster Sum of Squares)",
-        template="plotly_dark"
-    )
-    st.plotly_chart(fig_elbow)
+    required_columns = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original',
+                        'Gender_Male', 'Cluster_gmm', 'Cluster_k']
+    missing_cols = [col for col in required_columns if col not in df.columns]
+    if missing_cols:
+        st.error(f"Missing columns in dataset: {missing_cols}")
+        st.stop()
 
-    # Silhouette Score Visualization
-    silhouette_avg = silhouette_method(X_scaled, max_k)
-    fig_silhouette = go.Figure()
-    fig_silhouette.add_trace(go.Scatter(x=list(range(2, max_k+1)), y=silhouette_avg, mode='lines+markers', name='Silhouette Score'))
-    fig_silhouette.update_layout(
-        title="Silhouette Score - K vs Average Silhouette",
-        xaxis_title="Number of Clusters (K)",
-        yaxis_title="Silhouette Score",
-        template="plotly_dark"
-    )
-    st.plotly_chart(fig_silhouette)
+    st.sidebar.header(" Filter Options")
+    cluster_method = st.sidebar.selectbox("Clustering Method", ["K-Means", "GMM", "Agglomerative", "DBSCAN"])
 
-    # Gap Statistic Visualization
-    gaps = gap_statistic(X_scaled, max_k)
-    fig_gap = go.Figure()
-    fig_gap.add_trace(go.Scatter(x=list(range(1, max_k+1)), y=gaps, mode='lines+markers', name='Gap Statistic'))
-    fig_gap.update_layout(
-        title="Gap Statistic - K vs Gap Value",
-        xaxis_title="Number of Clusters (K)",
-        yaxis_title="Gap Statistic",
-        template="plotly_dark"
-    )
-    st.plotly_chart(fig_gap)
+    st.sidebar.markdown("### Demographics")
+    min_age, max_age = int(df['Age_original'].min()), int(df['Age_original'].max())
+    min_income, max_income = int(df['Annual_Income (£K)_original'].min()), int(df['Annual_Income (£K)_original'].max())
+    age_range = st.sidebar.slider("Age Range", min_age, max_age, (25, 60))
+    income_range = st.sidebar.slider("Income Range (£K)", min_income, max_income, (20, 100))
 
-    # Let the user select the optimal K
-    k_selected = st.selectbox("Select Optimal K based on the methods above", list(range(2, max_k+1)))
+    df_filtered = df[(df['Age_original'] >= age_range[0]) & (df['Age_original'] <= age_range[1]) &
+                     (df['Annual_Income (£K)_original'] >= income_range[0]) &
+                     (df['Annual_Income (£K)_original'] <= income_range[1])]
 
-    st.subheader(f"Clustering Results for K={k_selected}")
-    cluster_labels = apply_kmeans(X_scaled, k_selected)
-    df['Cluster'] = cluster_labels
-    st.dataframe(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original', 'Cluster']].head())
+    def apply_clustering(method, df):
+        X = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
 
-    # Visualize clusters
-    fig_cluster = go.Figure()
-    fig_cluster.add_trace(go.Scatter(x=df['Age_original'], y=df['Annual_Income (£K)_original'], mode='markers', 
-                                     marker=dict(color=df['Cluster'], colorscale='Viridis', size=10)))
-    fig_cluster.update_layout(
-        title=f"Clusters Visualized for K={k_selected}",
-        xaxis_title="Age",
-        yaxis_title="Annual Income (£K)",
-        template="plotly_dark"
-    )
-    st.plotly_chart(fig_cluster)
+        if method == "K-Means":
+            return df['Cluster_k'], "Cluster_k"
+        elif method == "GMM":
+            return df['Cluster_gmm'], "Cluster_gmm"
+        elif method == "Agglomerative":
+            model = AgglomerativeClustering(n_clusters=5)
+            labels = model.fit_predict(X)
+            df['Cluster_agg'] = labels
+            return labels, "Cluster_agg"
+        elif method == "DBSCAN":
+            model = DBSCAN(eps=10, min_samples=5)
+            labels = model.fit_predict(X)
+            df['Cluster_db'] = labels
+            return labels, "Cluster_db"
 
-elif section == "Cluster Analysis":
-    st.header("Cluster Analysis with Existing Data")
-    # Add code for cluster analysis from previous steps
+    labels, label_col = apply_clustering(cluster_method, df_filtered)
+    df_filtered['Active_Cluster'] = labels
+
+    st.markdown("###  Clustering Quality Metrics")
+    valid_idx = df_filtered['Active_Cluster'] != -1
+    X_valid = df_filtered[valid_idx][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
+    labels_valid = df_filtered[valid_idx]['Active_Cluster']
+
+    if len(set(labels_valid)) > 1:
+        sil = silhouette_score(X_valid, labels_valid)
+        db = davies_bouldin_score(X_valid, labels_valid)
+        ch = calinski_harabasz_score(X_valid, labels_valid)
+
+        st.markdown(f"- **Silhouette Score:** {sil:.2f}")
+        st.markdown(f"- **Davies-Bouldin Index:** {db:.2f}")
+        st.markdown(f"- **Calinski-Harabasz Score:** {ch:.2f}")
+    else:
+        st.warning("⚠ Not enough clusters to compute metrics.")
+
+    if cluster_method == "Agglomerative":
+        st.markdown("###  Hierarchical Dendrogram")
+        X = df_filtered[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
+        Z = linkage(X, method='ward')
+        fig_dendro, ax = plt.subplots(figsize=(10, 4))
+        dendrogram(Z, truncate_mode='level', p=5, ax=ax)
+        st.pyplot(fig_dendro)
+
+    st.markdown(f" Showing customers aged between **{age_range[0]}–{age_range[1]}** "
+                f"with income between **£{income_range[0]}K–£{income_range[1]}K**.")
+
+    st.header(" Cluster Ranking by Avg. Spending Score")
+    cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
+    st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
+
+    st.subheader("👥 Cluster Sizes")
+    cluster_counts = df_filtered['Active_Cluster'].value_counts().sort_index()
+    fig_bar, ax_bar = plt.subplots(figsize=(6, 4))
+    sns.barplot(x=cluster_counts.index, y=cluster_counts.values, palette="Set2", ax=ax_bar)
+    ax_bar.set_xlabel("Cluster")
+    ax_bar.set_ylabel("Number of Customers")
+    ax_bar.set_title("Cluster Sizes")
+    st.pyplot(fig_bar)
+
+    for cluster_label in sorted(df_filtered['Active_Cluster'].unique()):
+        cluster_data = df_filtered[df_filtered['Active_Cluster'] == cluster_label]
+
+        fig = make_subplots(
+            rows=2, cols=2,
+            specs=[[{"type": "histogram"}, {"type": "pie"}],
+                   [{"type": "box"}, {"type": "violin"}]],
+            subplot_titles=(
+                f'Spending Score - Cluster {cluster_label}',
+                f'Gender Split - Cluster {cluster_label}',
+                f'Age Box Plot - Cluster {cluster_label}',
+                f'Income Violin - Cluster {cluster_label}'
+            )
+        )
+
+        fig.add_trace(go.Histogram(x=cluster_data['Spending_Score_original'], nbinsx=10,
+                                   marker_color='skyblue'), row=1, col=1)
+
+        gender_counts = cluster_data['Gender_Male'].value_counts()
+        fig.add_trace(go.Pie(labels=['Male', 'Female'],
+                             values=[gender_counts.get(1, 0), gender_counts.get(0, 0)],
+                             marker_colors=['skyblue', 'lightcoral'],
+                             textinfo='percent+label'), row=1, col=2)
+
+        fig.add_trace(go.Box(y=cluster_data['Age_original'],
+                             marker_color='lightgreen', boxmean='sd'), row=2, col=1)
+
+        fig.add_trace(go.Violin(y=cluster_data['Annual_Income (£K)_original'],
+                                box_visible=True, meanline_visible=True,
+                                line_color='orange'), row=2, col=2)
+
+        fig.update_layout(
+            title_text=f' Cluster {cluster_label} Detailed Analysis',
+            showlegend=False, height=900, width=1000
+        )
+
+        st.plotly_chart(fig)
 
 elif section == "Analyze New Customer Data":
     st.header("Analyze New Customer Data")
-    # Add code for analyzing new customer data
+    with st.form(key='customer_form'):
+        age = st.number_input('Age', min_value=0, max_value=100, value=32)
+        income = st.number_input('Annual Income (£K)', min_value=0, max_value=500, value=70)
+        spending_score = st.number_input('Spending Score', min_value=0, max_value=100, value=85)
+        gender = st.radio('⚧ Gender', ['Female', 'Male'], index=0)
+        submitted = st.form_submit_button("Analyze")
+
+    if submitted:
+        gender_female = 1 if gender == 'Female' else 0
+        gender_male = 1 if gender == 'Male' else 0
+
+        new_data = {
+            'Age_original': age,
+            'Annual_Income (£K)_original': income,
+            'Spending_Score_original': spending_score,
+            'Gender_Female': gender_female,
+            'Gender_Male': gender_male
+        }
+
+        analyze_new_customer(new_data, model, X_train, cluster_k_info)
