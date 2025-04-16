@@ -20,7 +20,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
     # Predict cluster
     predicted_cluster = model.predict(new_customer)[0]
-    st.subheader(f"🔍 Predicted Cluster: {predicted_cluster}")
+    st.subheader(f" Predicted Cluster: {predicted_cluster}")
 
     similar_customers = cluster_info[predicted_cluster].copy()
     similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
@@ -47,19 +47,19 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
                         name='New Customer',
                         line=dict(color='red'))
     ])
-    fig.update_layout(title=f'🧭 Comparison: New Customer vs Cluster {predicted_cluster}',
+    fig.update_layout(title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
                       polar=dict(radialaxis=dict(visible=True)))
     st.plotly_chart(fig)
 
 # ---- Streamlit App UI ----
 st.set_page_config(page_title="Customer Cluster Prediction", layout="centered")
-st.title("🔎 Customer Cluster Analysis & Visualization")
+st.title(" Customer Cluster Analysis & Visualization")
 
 # Input form
 with st.form(key='customer_form'):
-    age = st.number_input('🧓 Age', min_value=0, max_value=100, value=32)
-    income = st.number_input('💰 Annual Income (£K)', min_value=0, max_value=500, value=70)
-    spending_score = st.number_input('🛍️ Spending Score', min_value=0, max_value=100, value=85)
+    age = st.number_input(' Age', min_value=0, max_value=100, value=32)
+    income = st.number_input(' Annual Income (£K)', min_value=0, max_value=500, value=70)
+    spending_score = st.number_input(' Spending Score', min_value=0, max_value=100, value=85)
     gender = st.radio('⚧ Gender', ['Female', 'Male'], index=0)
 
     submitted = st.form_submit_button("Analyze")
