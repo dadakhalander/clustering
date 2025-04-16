@@ -132,7 +132,7 @@ if section == "Cluster Analysis":
     labels, label_col = apply_clustering(cluster_method, df_filtered)
     df_filtered['Active_Cluster'] = labels
 
-    st.markdown("### 📈 Clustering Quality Metrics")
+    st.markdown("###  Clustering Quality Metrics")
     valid_idx = df_filtered['Active_Cluster'] != -1
     X_valid = df_filtered[valid_idx][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
     labels_valid = df_filtered[valid_idx]['Active_Cluster']
@@ -149,7 +149,7 @@ if section == "Cluster Analysis":
         st.warning("Not enough clusters to compute metrics.")
 
     if cluster_method == "Agglomerative":
-        st.markdown("### 🧬 Hierarchical Dendrogram")
+        st.markdown("###  Hierarchical Dendrogram")
         X = df_filtered[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
         Z = linkage(X, method='ward')
         fig_dendro, ax = plt.subplots(figsize=(10, 4))
@@ -163,7 +163,7 @@ if section == "Cluster Analysis":
     cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
     st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
 
-    st.subheader("👥 Cluster Sizes")
+    st.subheader(" Cluster Sizes")
     cluster_counts = df_filtered['Active_Cluster'].value_counts().sort_index()
     fig_bar, ax_bar = plt.subplots(figsize=(6, 4))
     sns.barplot(x=cluster_counts.index, y=cluster_counts.values, palette="Set2", ax=ax_bar)
