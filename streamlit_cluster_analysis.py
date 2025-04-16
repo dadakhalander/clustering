@@ -2,22 +2,19 @@ import streamlit as st
 import pandas as pd
 import joblib
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 import plotly.express as px
-import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
-from plotly.subplots import make_subplots
 from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from scipy.cluster.hierarchy import linkage, dendrogram
 
 # ---- Load Pretrained Artifacts ----
 model = joblib.load("best_rf.pkl")
 X_train = joblib.load("X_train.pkl")
 cluster_k_info = joblib.load("cluster_k_info.pkl")
 
-# ---- Function to Analyze New Customer ----
+# ---- Analyze New Customer Function ----
 def analyze_new_customer(new_data, model, X_train, cluster_info):
     new_customer = pd.DataFrame([new_data])
     new_customer = new_customer[X_train.columns]
@@ -47,42 +44,34 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
         r=cluster_mean,
         theta=X_train.columns,
         name='Cluster Mean',
-        line=dict(color='royalblue', width=3),
         fill='toself',
-        fillcolor='rgba(65, 105, 225, 0.3)',
-        opacity=0.8
+        opacity=0.7
     )
 
     trace2 = go.Scatterpolar(
         r=new_customer.values[0],
         theta=X_train.columns,
         name='New Customer',
-        line=dict(color='darkorange', width=3),
         fill='toself',
-        fillcolor='rgba(255, 140, 0, 0.3)',
-        opacity=0.8
+        opacity=0.7
     )
 
     fig = go.Figure(data=[trace1, trace2])
     fig.update_layout(
         title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1]),
-            angularaxis=dict(tickmode='array', tickvals=list(range(len(X_train.columns))), ticktext=X_train.columns)
+            radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1])
         ),
-        template="plotly_dark",
-        font=dict(family="Arial, sans-serif", size=12, color="white"),
         showlegend=True
     )
 
     st.plotly_chart(fig)
 
-# ---- Streamlit App UI ----
+# ---- Streamlit App ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
-st.title(" Customer Segmentation Analysis Dashboard")
+st.title("🔍 Customer Segmentation Dashboard")
 
-# ---- Sidebar Navigation ----
-section = st.sidebar.radio(" Choose Section", ["Cluster Analysis", "Analyze New Customer Data", "Custom Clustering"])
+section = st.sidebar.radio("Select Section", ["Cluster Analysis", "Analyze New Customer Data", "Custom Clustering"])
 
 @st.cache_data
 def load_data():
@@ -91,16 +80,37 @@ def load_data():
 df = load_data()
 
 if section == "Cluster Analysis":
-    # [Unchanged - Already implemented correctly]
-    ...
+    st.header("Cluster Distribution")
+    st.plotly_chart(px.scatter_3d(
+        df,
+        x='Age_original',
+        y='Annual_Income (£K)_original',
+        z='Spending_Score_original',
+        color='Cluster_Label',
+        title="Precomputed Clusters in 3D"
+    ))
 
 elif section == "Analyze New Customer Data":
-    # [Unchanged - Already implemented correctly]
-    ...
+    st.header("🧍‍♂️ Analyze a New Customer")
+    new_data = {
+        'Age': st.slider("Age", 18, 70, 30),
+        'Annual_Income (£K)': st.slider("Annual Income (£K)", 10, 150, 50),
+        'Spending_Score': st.slider("Spending Score", 1, 100, 50),
+        'Gender_Female': 0,
+        'Gender_Male': 0
+    }
+
+    gender = st.radio("Gender", ['Male', 'Female'])
+    if gender == 'Male':
+        new_data['Gender_Male'] = 1
+    else:
+        new_data['Gender_Female'] = 1
+
+    if st.button("Analyze"):
+        analyze_new_customer(new_data, model, X_train, cluster_k_info)
 
 elif section == "Custom Clustering":
-    st.header(" Custom Clustering")
-    st.markdown("Let users experiment with their own clustering parameters.")
+    st.header("⚙️ Custom Clustering Explorer")
 
     method = st.selectbox("Choose Clustering Algorithm", ["Agglomerative", "DBSCAN", "K-Means", "GMM"])
     data = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
@@ -128,26 +138,33 @@ elif section == "Custom Clustering":
 
     df['Custom_Cluster'] = labels
 
-    st.subheader("Cluster Results")
+    st.subheader("Clustered Data Preview")
     st.write(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original', 'Custom_Cluster']].head())
 
-    fig = px.scatter_3d(df, x='Age_original', y='Annual_Income (£K)_original', z='Spending_Score_original',
-                        color=df['Custom_Cluster'].astype(str), title="Custom Clustering Visualization")
+    fig = px.scatter_3d(
+        df,
+        x='Age_original',
+        y='Annual_Income (£K)_original',
+        z='Spending_Score_original',
+        color=df['Custom_Cluster'].astype(str),
+        title=f"{method} Clustering Result"
+    )
     st.plotly_chart(fig)
 
-    # Clustering metrics (if applicable)
-    valid_idx = df['Custom_Cluster'] != -1
-    valid_data = df[valid_idx]
-    if valid_data['Custom_Cluster'].nunique() > 1:
+    # Clustering metrics
+    if method != "DBSCAN" or len(set(labels)) > 1:
+        valid_data = df[df['Custom_Cluster'] != -1]
         X_valid = valid_data[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
-        labels_valid = valid_data['Custom_Cluster']
-        sil = silhouette_score(X_valid, labels_valid)
-        db = davies_bouldin_score(X_valid, labels_valid)
-        ch = calinski_harabasz_score(X_valid, labels_valid)
+        y_valid = valid_data['Custom_Cluster']
 
-        st.markdown("### Clustering Quality Metrics")
-        st.markdown(f"- **Silhouette Score:** {sil:.2f}")
-        st.markdown(f"- **Davies-Bouldin Index:** {db:.2f}")
-        st.markdown(f"- **Calinski-Harabasz Score:** {ch:.2f}")
-    else:
-        st.warning("⚠ Not enough valid clusters to compute metrics.")
+        if y_valid.nunique() > 1:
+            sil = silhouette_score(X_valid, y_valid)
+            db = davies_bouldin_score(X_valid, y_valid)
+            ch = calinski_harabasz_score(X_valid, y_valid)
+
+            st.markdown("### 📊 Clustering Quality Metrics")
+            st.markdown(f"- **Silhouette Score:** {sil:.2f}")
+            st.markdown(f"- **Davies-Bouldin Index:** {db:.2f}")
+            st.markdown(f"- **Calinski-Harabasz Score:** {ch:.2f}")
+        else:
+            st.warning("🚨 Not enough clusters to compute clustering quality scores.")
