@@ -39,6 +39,10 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
     # Calculate the average of the cluster
     cluster_mean = similar_customers[X_train.columns].mean()
 
+    # Find the maximum values for the comparison
+    cluster_mean_max = cluster_mean.max()
+    new_customer_max = new_customer.max().values[0]  # Convert the pandas series to a scalar
+
     # Radar chart comparison with improved style
     trace1 = go.Scatterpolar(
         r=cluster_mean,
@@ -66,7 +70,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
     fig.update_layout(
         title=f'Comparison: New Customer vs Cluster {predicted_cluster}',
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, max(cluster_mean.max(), new_customer.max()) + 1]),
+            radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1]),
             angularaxis=dict(tickmode='array', tickvals=list(range(len(X_train.columns))), ticktext=X_train.columns)
         ),
         template="plotly_dark",
