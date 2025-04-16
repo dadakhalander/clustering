@@ -57,8 +57,8 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
 st.title("Customer Segmentation Analysis Dashboard")
 
-# Sidebar section navigation
-section = st.sidebar.selectbox("Select Section", ["Cluster Analysis", "Analyze New Customer Data"])
+# ---- Sidebar Section for Navigation ----
+section = st.sidebar.radio("Choose Section", ["Cluster Analysis", "Analyze New Customer Data"])
 
 # ---- Section 1: Pre-existing Cluster Data ----
 if section == "Cluster Analysis":
@@ -173,30 +173,30 @@ if section == "Cluster Analysis":
             mime='text/csv'
         )
 
-# Feature Boxplots
-st.markdown("---")
-st.header("Feature Distribution Across Clusters")
+    # Feature Boxplots
+    st.markdown("---")
+    st.header("Feature Distribution Across Clusters")
 
-for feature in ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']:
-    st.subheader(f" {feature}")
+    for feature in ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']:
+        st.subheader(f" {feature}")
 
-    col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-    with col1:
-        st.markdown("**GMM Clustering**")
-        fig1, ax1 = plt.subplots(figsize=(6, 5))
-        sns.boxplot(x=df_filtered['Cluster_gmm'], y=df_filtered[feature], palette="Set3", ax=ax1)
-        ax1.set_xlabel("GMM Cluster")
-        ax1.set_ylabel(feature)
-        st.pyplot(fig1)
+        with col1:
+            st.markdown("**GMM Clustering**")
+            fig1, ax1 = plt.subplots(figsize=(6, 5))
+            sns.boxplot(x=df_filtered['Cluster_gmm'], y=df_filtered[feature], palette="Set3", ax=ax1)
+            ax1.set_xlabel("GMM Cluster")
+            ax1.set_ylabel(feature)
+            st.pyplot(fig1)
 
-    with col2:
-        st.markdown("**K-Means Clustering**")
-        fig2, ax2 = plt.subplots(figsize=(6, 5))
-        sns.boxplot(x=df_filtered['Cluster_k'], y=df_filtered[feature], palette="Set2", ax=ax2)
-        ax2.set_xlabel("K-Means Cluster")
-        ax2.set_ylabel(feature)
-        st.pyplot(fig2)
+        with col2:
+            st.markdown("**K-Means Clustering**")
+            fig2, ax2 = plt.subplots(figsize=(6, 5))
+            sns.boxplot(x=df_filtered['Cluster_k'], y=df_filtered[feature], palette="Set2", ax=ax2)
+            ax2.set_xlabel("K-Means Cluster")
+            ax2.set_ylabel(feature)
+            st.pyplot(fig2)
 
 # ---- Section 2: Analyze New Customer Data ----
 elif section == "Analyze New Customer Data":
