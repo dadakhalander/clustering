@@ -1,151 +1,100 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import joblib
+import plotly.graph_objects as go
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.cluster import KMeans
 
-# Page Config
-st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
-st.title("Customer Segmentation Analysis Dashboard")
+# ---- Load Pretrained Artifacts ----
+model = joblib.load("best_rf.pkl")               # Trained Random Forest model
+X_train = joblib.load("X_train.pkl")             # Features used to train the model
+cluster_k_info = joblib.load("cluster_k_info.pkl")  # Dictionary of clustered data
 
-# Load dataset
-@st.cache_data
-def load_data():
-    return pd.read_csv("clustering_results.csv")
+# ---- Function to Perform K-Means Clustering ----
+def kmeans_cluster_analysis(X_train):
+    kmeans = KMeans(n_clusters=5, random_state=42)
+    clusters = kmeans.fit_predict(X_train)
+    X_train['Cluster'] = clusters
+    return X_train
 
-df = load_data()
+# ---- Function to Analyze New Customer ----
+def analyze_new_customer(new_data, model, X_train, cluster_info):
+    new_customer = pd.DataFrame([new_data])
+    new_customer = new_customer[X_train.columns]  # Ensure same column order
 
-# Validate required columns
-required_columns = [
-    'Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original',
-    'Gender_Male', 'Cluster_gmm', 'Cluster_k'
-]
-missing_cols = [col for col in required_columns if col not in df.columns]
-if missing_cols:
-    st.error(f"Missing columns in dataset: {missing_cols}")
-    st.stop()
+    # Convert binary columns
+    new_customer['Gender_Female'] = new_customer['Gender_Female'].astype(int)
+    new_customer['Gender_Male'] = new_customer['Gender_Male'].astype(int)
 
-# Data Cleaning: Convert columns to numeric, forcing errors to NaN
-df['Age_original'] = pd.to_numeric(df['Age_original'], errors='coerce')
-df['Annual_Income (£K)_original'] = pd.to_numeric(df['Annual_Income (£K)_original'], errors='coerce')
-df['Spending_Score_original'] = pd.to_numeric(df['Spending_Score_original'], errors='coerce')
+    # Predict cluster
+    predicted_cluster = model.predict(new_customer)[0]
+    st.subheader(f" Predicted Cluster: {predicted_cluster}")
 
-# Handle missing values
-df = df.dropna(subset=['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original'])
+    similar_customers = cluster_info[predicted_cluster].copy()
+    similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
+    similar_customers['Gender_Male'] = similar_customers['Gender_Male'].astype(int)
 
-# Sidebar Filters
-st.sidebar.header("Filter Options")
-cluster_type = st.sidebar.selectbox("Select Clustering Method", ["Cluster_gmm", "Cluster_k"])
+    # Cosine similarity
+    sims = cosine_similarity(similar_customers[X_train.columns], new_customer)
+    most_similar_index = sims.argmax()
+    most_similar_customer = similar_customers.iloc[most_similar_index]
 
-st.sidebar.markdown("### Demographics Filters")
-min_age, max_age = int(df['Age_original'].min()), int(df['Age_original'].max())
-min_income, max_income = int(df['Annual_Income (£K)_original'].min()), int(df['Annual_Income (£K)_original'].max())
+    st.subheader("👤 Most Similar Customer in Cluster:")
+    st.dataframe(most_similar_customer[X_train.columns])
 
-age_range = st.sidebar.slider("Select Age Range", min_age, max_age, (25, 60))
-income_range = st.sidebar.slider("Select Income Range (£K)", min_income, max_income, (20, 100))
+    # Radar Chart
+    cluster_mean = similar_customers[X_train.columns].mean()
 
-# Filter dataset
-df_filtered = df[
-    (df['Age_original'] >= age_range[0]) & (df['Age_original'] <= age_range[1]) &
-    (df['Annual_Income (£K)_original'] >= income_range[0]) & (df['Annual_Income (£K)_original'] <= income_range[1])
-]
+    fig = go.Figure(data=[
+        go.Scatterpolar(r=cluster_mean,
+                        theta=X_train.columns,
+                        name='Cluster Mean',
+                        line=dict(color='blue')),
+        go.Scatterpolar(r=new_customer.values[0],
+                        theta=X_train.columns,
+                        name='New Customer',
+                        line=dict(color='red'))
+    ])
+    fig.update_layout(title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
+                      polar=dict(radialaxis=dict(visible=True)))
+    st.plotly_chart(fig)
 
-# Display selected filters
-st.markdown(f"Showing customers aged between **{age_range[0]} and {age_range[1]}** years "
-            f"with annual income between **£{income_range[0]}K and £{income_range[1]}K**.")
+# ---- Streamlit App UI ----
+st.set_page_config(page_title="Customer Cluster Prediction", layout="centered")
+st.title("Customer Cluster Analysis & Visualization")
 
-# Cluster Summary Table
-st.header("Cluster Ranking Based on Average Spending Score")
-cluster_spending = df_filtered.groupby(cluster_type)['Spending_Score_original'].mean().sort_values(ascending=False)
-st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
+# Choose Analysis Type
+analysis_type = st.radio("Choose Analysis Type", ["Clustering Analysis", "New Customer Analysis"])
 
-# Cluster Size Bar Chart
-st.subheader("👥 Cluster Sizes")
-cluster_counts = df_filtered[cluster_type].value_counts().sort_index()
-fig_bar, ax_bar = plt.subplots(figsize=(6, 4))
-sns.barplot(x=cluster_counts.index, y=cluster_counts.values, palette="Set2", ax=ax_bar)
-ax_bar.set_xlabel("Cluster")
-ax_bar.set_ylabel("Number of Customers")
-ax_bar.set_title("Cluster Sizes")
-st.pyplot(fig_bar)
+if analysis_type == "Clustering Analysis":
+    # Clustering analysis section
+    st.subheader("Clustering Analysis (K-Means)")
+    # You can add additional features for KMeans if needed
+    clustered_data = kmeans_cluster_analysis(X_train)
+    st.dataframe(clustered_data.head())  # Display first few rows of clustered data
 
-# Define Colors
-cluster_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+elif analysis_type == "New Customer Analysis":
+    # Input form for new customer data
+    with st.form(key='customer_form'):
+        age = st.number_input(' Age', min_value=0, max_value=100, value=32)
+        income = st.number_input(' Annual Income (£K)', min_value=0, max_value=500, value=70)
+        spending_score = st.number_input(' Spending Score', min_value=0, max_value=100, value=85)
+        gender = st.radio('⚧ Gender', ['Female', 'Male'], index=0)
 
-# Cluster Deep Dive
-for cluster_label in sorted(df_filtered[cluster_type].unique()):
-    st.markdown("---")
-    st.subheader(f"Cluster {cluster_label} Analysis")
+        submitted = st.form_submit_button("Analyze")
 
-    cluster_data = df_filtered[df_filtered[cluster_type] == cluster_label]
-    color = cluster_colors[cluster_label % len(cluster_colors)]
+    # Submit handler for new customer analysis
+    if submitted:
+        gender_female = 1 if gender == 'Female' else 0
+        gender_male = 1 if gender == 'Male' else 0
 
-    # Gender breakdown
-    gender_counts = cluster_data['Gender_Male'].value_counts()
-    gender_labels = ["Female", "Male"]
-    gender_colors = ["#f78da7", "#7ec8e3"]
+        new_data = {
+            'Age_original': age,
+            'Annual_Income (£K)_original': income,
+            'Spending_Score_original': spending_score,
+            'Gender_Female': gender_female,
+            'Gender_Male': gender_male
+        }
 
-    col1, col2 = st.columns([2, 1])
-
-    # Distribution Plots
-    with col1:
-        fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-        features = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']
-        titles = ['Age', 'Annual Income (£K)', 'Spending Score']
-
-        for i in range(3):
-            sns.histplot(cluster_data[cluster_data['Gender_Male'] == 0][features[i]],
-                         kde=True, color=color, label="Female", ax=axes[i])
-            sns.histplot(cluster_data[cluster_data['Gender_Male'] == 1][features[i]],
-                         kde=True, color="gray", label="Male", ax=axes[i])
-            axes[i].set_title(f"{titles[i]} Distribution")
-            axes[i].legend()
-
-        plt.tight_layout()
-        st.pyplot(fig)
-
-    # Pie Chart
-    with col2:
-        st.markdown("#### Gender Distribution")
-        fig_pie, ax_pie = plt.subplots(figsize=(4, 4))
-        ax_pie.pie(gender_counts, labels=gender_labels, colors=gender_colors, autopct='%1.1f%%', startangle=90)
-        ax_pie.set_title("Gender Composition")
-        ax_pie.axis('equal')
-        st.pyplot(fig_pie)
-
-    # Stats
-    st.markdown("#### Cluster Statistics")
-    st.dataframe(cluster_data[features].describe().T.style.format("{:.2f}"))
-
-    # Download Button
-    csv = cluster_data.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label=f"Download Cluster {cluster_label} Data as CSV",
-        data=csv,
-        file_name=f'cluster_{cluster_label}_data.csv',
-        mime='text/csv'
-    )
-
-# Feature Boxplots
-st.markdown("---")
-st.header("Feature Distribution Across Clusters")
-
-for feature in ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']:
-    st.subheader(f"{feature}")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("**GMM Clustering**")
-        fig1, ax1 = plt.subplots(figsize=(6, 5))
-        sns.boxplot(x=df_filtered['Cluster_gmm'], y=df_filtered[feature], palette="Set3", ax=ax1)
-        ax1.set_xlabel("GMM Cluster")
-        ax1.set_ylabel(feature)
-        st.pyplot(fig1)
-
-    with col2:
-        st.markdown("**K-Means Clustering**")
-        fig2, ax2 = plt.subplots(figsize=(6, 5))
-        sns.boxplot(x=df_filtered['Cluster_k'], y=df_filtered[feature], palette="Set2", ax=ax2)
-        ax2.set_xlabel("K-Means Cluster")
-        ax2.set_ylabel(feature)
-        st.pyplot(fig2)
+        # Analyze the new customer
+        analyze_new_customer(new_data, model, X_train, cluster_k_info)
