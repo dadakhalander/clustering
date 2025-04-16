@@ -3,7 +3,6 @@ import pandas as pd
 import joblib
 import plotly.graph_objects as go
 import plotly.express as px
-import matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
 from sklearn.mixture import GaussianMixture
@@ -14,7 +13,15 @@ model = joblib.load("best_rf.pkl")
 X_train = joblib.load("X_train.pkl")
 cluster_k_info = joblib.load("cluster_k_info.pkl")
 
-# ---- Analyze New Customer Function ----
+# ---- Load Original Data ----
+@st.cache_data
+def load_data():
+    df = pd.read_csv("clustering_results.csv")
+    return df
+
+df = load_data()
+
+# ---- Analyze New Customer ----
 def analyze_new_customer(new_data, model, X_train, cluster_info):
     new_customer = pd.DataFrame([new_data])
     new_customer = new_customer[X_train.columns]
@@ -67,31 +74,31 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
     st.plotly_chart(fig)
 
-# ---- Streamlit App ----
+# ---- App Layout ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
 st.title("🔍 Customer Segmentation Dashboard")
 
 section = st.sidebar.radio("Select Section", ["Cluster Analysis", "Analyze New Customer Data", "Custom Clustering"])
 
-@st.cache_data
-def load_data():
-    return pd.read_csv("clustering_results.csv")
-
-df = load_data()
-
+# ---- Cluster Analysis Section ----
 if section == "Cluster Analysis":
-    st.header("Cluster Distribution")
-    st.plotly_chart(px.scatter_3d(
-        df,
-        x='Age_original',
-        y='Annual_Income (£K)_original',
-        z='Spending_Score_original',
-        color='Cluster_Label',
-        title="Precomputed Clusters in 3D"
-    ))
+    st.header("📊 Cluster Distribution")
+    if 'Cluster_Label' not in df.columns:
+        st.error("❌ 'Cluster_Label' column is missing from dataset.")
+    else:
+        fig = px.scatter_3d(
+            df,
+            x='Age_original',
+            y='Annual_Income (£K)_original',
+            z='Spending_Score_original',
+            color='Cluster_Label',
+            title="Precomputed Clusters in 3D"
+        )
+        st.plotly_chart(fig)
 
+# ---- Analyze New Customer Section ----
 elif section == "Analyze New Customer Data":
-    st.header("🧍‍♂️ Analyze a New Customer")
+    st.header("🧍 Analyze a New Customer")
     new_data = {
         'Age': st.slider("Age", 18, 70, 30),
         'Annual_Income (£K)': st.slider("Annual Income (£K)", 10, 150, 50),
@@ -109,51 +116,51 @@ elif section == "Analyze New Customer Data":
     if st.button("Analyze"):
         analyze_new_customer(new_data, model, X_train, cluster_k_info)
 
+# ---- Custom Clustering Section ----
 elif section == "Custom Clustering":
     st.header("⚙️ Custom Clustering Explorer")
 
     method = st.selectbox("Choose Clustering Algorithm", ["Agglomerative", "DBSCAN", "K-Means", "GMM"])
-    data = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
+    df_custom = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']].copy()
 
     if method == "Agglomerative":
         n_clusters = st.slider("Number of Clusters", 2, 10, 4)
         model = AgglomerativeClustering(n_clusters=n_clusters)
-        labels = model.fit_predict(data)
+        labels = model.fit_predict(df_custom)
 
     elif method == "DBSCAN":
         eps = st.slider("Epsilon (eps)", 1.0, 20.0, 10.0)
         min_samples = st.slider("Minimum Samples", 1, 10, 5)
         model = DBSCAN(eps=eps, min_samples=min_samples)
-        labels = model.fit_predict(data)
+        labels = model.fit_predict(df_custom)
 
     elif method == "K-Means":
         n_clusters = st.slider("Number of Clusters", 2, 10, 4)
         model = KMeans(n_clusters=n_clusters, random_state=42)
-        labels = model.fit_predict(data)
+        labels = model.fit_predict(df_custom)
 
     elif method == "GMM":
         n_clusters = st.slider("Number of Clusters", 2, 10, 4)
         model = GaussianMixture(n_components=n_clusters, random_state=42)
-        labels = model.fit_predict(data)
+        labels = model.fit_predict(df_custom)
 
-    df['Custom_Cluster'] = labels
+    df_custom['Custom_Cluster'] = labels
 
     st.subheader("Clustered Data Preview")
-    st.write(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original', 'Custom_Cluster']].head())
+    st.dataframe(df_custom.head())
 
     fig = px.scatter_3d(
-        df,
+        df_custom,
         x='Age_original',
         y='Annual_Income (£K)_original',
         z='Spending_Score_original',
-        color=df['Custom_Cluster'].astype(str),
+        color=df_custom['Custom_Cluster'].astype(str),
         title=f"{method} Clustering Result"
     )
     st.plotly_chart(fig)
 
-    # Clustering metrics
     if method != "DBSCAN" or len(set(labels)) > 1:
-        valid_data = df[df['Custom_Cluster'] != -1]
+        valid_data = df_custom[df_custom['Custom_Cluster'] != -1]
         X_valid = valid_data[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
         y_valid = valid_data['Custom_Cluster']
 
@@ -162,9 +169,9 @@ elif section == "Custom Clustering":
             db = davies_bouldin_score(X_valid, y_valid)
             ch = calinski_harabasz_score(X_valid, y_valid)
 
-            st.markdown("### 📊 Clustering Quality Metrics")
+            st.markdown("### 📈 Clustering Quality Metrics")
             st.markdown(f"- **Silhouette Score:** {sil:.2f}")
             st.markdown(f"- **Davies-Bouldin Index:** {db:.2f}")
             st.markdown(f"- **Calinski-Harabasz Score:** {ch:.2f}")
         else:
-            st.warning("🚨 Not enough clusters to compute clustering quality scores.")
+            st.warning("⚠️ Not enough clusters to compute metrics.")
