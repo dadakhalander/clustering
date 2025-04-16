@@ -7,7 +7,8 @@ import plotly.express as px
 import seaborn as sns
 from sklearn.metrics.pairwise import cosine_similarity
 from plotly.subplots import make_subplots
-from sklearn.cluster import AgglomerativeClustering, DBSCAN
+from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
+from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from scipy.cluster.hierarchy import linkage, dendrogram
 
@@ -19,18 +20,15 @@ cluster_k_info = joblib.load("cluster_k_info.pkl")
 # ---- Function to Analyze New Customer ----
 def analyze_new_customer(new_data, model, X_train, cluster_info):
     new_customer = pd.DataFrame([new_data])
+    missing_cols = set(X_train.columns) - set(new_customer.columns)
+    for col in missing_cols:
+        new_customer[col] = 0
     new_customer = new_customer[X_train.columns]
-
-    new_customer['Gender_Female'] = new_customer['Gender_Female'].astype(int)
-    new_customer['Gender_Male'] = new_customer['Gender_Male'].astype(int)
 
     predicted_cluster = model.predict(new_customer)[0]
     st.subheader(f" Predicted Cluster: {predicted_cluster}")
 
     similar_customers = cluster_info[predicted_cluster].copy()
-    similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
-    similar_customers['Gender_Male'] = similar_customers['Gender_Male'].astype(int)
-
     sims = cosine_similarity(similar_customers[X_train.columns], new_customer)
     most_similar_index = sims.argmax()
     most_similar_customer = similar_customers.iloc[most_similar_index]
@@ -250,10 +248,20 @@ elif section == "Custom Clustering":
     st.header(" Custom Clustering")
     st.markdown("Let users experiment with their own clustering parameters.")
 
-    method = st.selectbox("Choose Clustering Algorithm", ["Agglomerative", "DBSCAN"])
+    method = st.selectbox("Choose Clustering Algorithm", ["KMeans", "GMM", "Agglomerative", "DBSCAN"])
     data = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
 
-    if method == "Agglomerative":
+    if method == "KMeans":
+        n_clusters = st.slider("Number of Clusters", 2, 10, 4)
+        model = KMeans(n_clusters=n_clusters, random_state=42)
+        labels = model.fit_predict(data)
+
+    elif method == "GMM":
+        n_clusters = st.slider("Number of Clusters", 2, 10, 4)
+        model = GaussianMixture(n_components=n_clusters, random_state=42)
+        labels = model.fit_predict(data)
+
+    elif method == "Agglomerative":
         n_clusters = st.slider("Number of Clusters", 2, 10, 4)
         model = AgglomerativeClustering(n_clusters=n_clusters)
         labels = model.fit_predict(data)
@@ -271,4 +279,4 @@ elif section == "Custom Clustering":
 
     fig = px.scatter_3d(df, x='Age_original', y='Annual_Income (£K)_original', z='Spending_Score_original',
                         color=df['Custom_Cluster'].astype(str), title="Custom Clustering Visualization")
-    st.plotly_chart(fig) 
+    st.plotly_chart(fig)
