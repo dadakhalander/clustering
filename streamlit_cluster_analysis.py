@@ -247,7 +247,7 @@ elif section == "Analyze New Customer Data":
         analyze_new_customer(new_data, model, X_train, cluster_k_info)
 
 elif section == "Custom Clustering":
-    st.header("🔧 Custom Clustering")
+    st.header(" Custom Clustering")
     st.markdown("Let users experiment with their own clustering parameters.")
 
     method = st.selectbox("Choose Clustering Algorithm", ["Agglomerative", "DBSCAN"])
