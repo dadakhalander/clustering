@@ -1,177 +1,89 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import joblib
-import plotly.graph_objects as go
 import plotly.express as px
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
-from sklearn.mixture import GaussianMixture
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 
-# ---- Load Pretrained Artifacts ----
-model = joblib.load("best_rf.pkl")
-X_train = joblib.load("X_train.pkl")
-cluster_k_info = joblib.load("cluster_k_info.pkl")
+# Load model and cluster info
+model = joblib.load('best_rf.pkl')  # Replace with your model path
+cluster_k_info = joblib.load('cluster_k_info.pkl')  # Contains {cluster_label: 'description'}
 
-# ---- Load Original Data ----
+# Load training features
+X_train = joblib.load('X_train.pkl')
+
+# Load clustering dataset
 @st.cache_data
 def load_data():
-    df = pd.read_csv("clustering_results.csv")
+    df = pd.read_csv('clustering_results.csv')
     return df
 
 df = load_data()
 
-# ---- Analyze New Customer ----
-def analyze_new_customer(new_data, model, X_train, cluster_info):
-    new_customer = pd.DataFrame([new_data])
-    new_customer = new_customer[X_train.columns]
+# Predict cluster labels if missing
+if 'Cluster_Label' not in df.columns:
+    try:
+        df['Cluster_Label'] = model.predict(df[X_train.columns])
+    except Exception as e:
+        st.error("Failed to add Cluster_Label: " + str(e))
 
-    new_customer['Gender_Female'] = new_customer['Gender_Female'].astype(int)
-    new_customer['Gender_Male'] = new_customer['Gender_Male'].astype(int)
+# Function to display cluster insights
+def cluster_analysis(df):
+    st.header("🔍 Cluster Analysis")
+    cluster_counts = df['Cluster_Label'].value_counts().sort_index()
+    st.bar_chart(cluster_counts)
 
-    predicted_cluster = model.predict(new_customer)[0]
-    st.subheader(f" Predicted Cluster: {predicted_cluster}")
+    st.subheader("Cluster Description Summary")
+    for cluster, description in cluster_k_info.items():
+        st.markdown(f"**Cluster {cluster}:** {description}")
 
-    similar_customers = cluster_info[predicted_cluster].copy()
-    similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
-    similar_customers['Gender_Male'] = similar_customers['Gender_Male'].astype(int)
+    st.subheader("📊 Cluster Feature Means")
+    cluster_means = df.groupby('Cluster_Label')[X_train.columns].mean()
+    st.dataframe(cluster_means.style.format("{:.2f}"))
 
-    sims = cosine_similarity(similar_customers[X_train.columns], new_customer)
-    most_similar_index = sims.argmax()
-    most_similar_customer = similar_customers.iloc[most_similar_index]
-
-    st.subheader(" Most Similar Customer in Cluster:")
-    st.dataframe(most_similar_customer[X_train.columns])
-
-    cluster_mean = similar_customers[X_train.columns].mean()
-    cluster_mean_max = cluster_mean.max()
-    new_customer_max = new_customer.max().values[0]
-
-    trace1 = go.Scatterpolar(
-        r=cluster_mean,
-        theta=X_train.columns,
-        name='Cluster Mean',
-        fill='toself',
-        opacity=0.7
-    )
-
-    trace2 = go.Scatterpolar(
-        r=new_customer.values[0],
-        theta=X_train.columns,
-        name='New Customer',
-        fill='toself',
-        opacity=0.7
-    )
-
-    fig = go.Figure(data=[trace1, trace2])
-    fig.update_layout(
-        title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1])
-        ),
-        showlegend=True
-    )
-
+    st.subheader("📈 Feature Distribution by Cluster")
+    feature = st.selectbox("Choose feature", X_train.columns)
+    fig = px.box(df, x='Cluster_Label', y=feature, points='all', title=f"{feature} by Cluster")
     st.plotly_chart(fig)
 
-# ---- App Layout ----
-st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
-st.title("🔍 Customer Segmentation Dashboard")
+# Function to analyze new customer
+def analyze_new_customer(new_customer, model, X_train, cluster_k_info):
+    st.subheader("🧪 New Customer Cluster Prediction")
 
-section = st.sidebar.radio("Select Section", ["Cluster Analysis", "Analyze New Customer Data", "Custom Clustering"])
+    # Ensure only model features are used
+    try:
+        new_customer_filtered = new_customer[X_train.columns]
+    except KeyError as e:
+        st.error(f"Missing columns in new data: {e}")
+        return
 
-# ---- Cluster Analysis Section ----
-if section == "Cluster Analysis":
-    st.header("📊 Cluster Distribution")
-    if 'Cluster_Label' not in df.columns:
-        st.error("❌ 'Cluster_Label' column is missing from dataset.")
-    else:
-        fig = px.scatter_3d(
-            df,
-            x='Age_original',
-            y='Annual_Income (£K)_original',
-            z='Spending_Score_original',
-            color='Cluster_Label',
-            title="Precomputed Clusters in 3D"
-        )
-        st.plotly_chart(fig)
+    cluster_label = model.predict(new_customer_filtered)[0]
+    st.markdown(f"### This new customer belongs to **Cluster {cluster_label}**.")
+    st.markdown(f"**Description:** {cluster_k_info.get(cluster_label, 'No description available')}")
 
-# ---- Analyze New Customer Section ----
-elif section == "Analyze New Customer Data":
-    st.header("🧍 Analyze a New Customer")
-    new_data = {
-        'Age': st.slider("Age", 18, 70, 30),
-        'Annual_Income (£K)': st.slider("Annual Income (£K)", 10, 150, 50),
-        'Spending_Score': st.slider("Spending Score", 1, 100, 50),
-        'Gender_Female': 0,
-        'Gender_Male': 0
-    }
+    st.markdown("#### 📋 Customer Feature Values:")
+    st.dataframe(new_customer)
 
-    gender = st.radio("Gender", ['Male', 'Female'])
-    if gender == 'Male':
-        new_data['Gender_Male'] = 1
-    else:
-        new_data['Gender_Female'] = 1
+# Streamlit layout
+st.title("📈 E-Commerce Customer Cluster Dashboard")
+menu = st.sidebar.radio("Navigation", ["Cluster Analysis", "Analyze New Customer"])
 
-    if st.button("Analyze"):
-        analyze_new_customer(new_data, model, X_train, cluster_k_info)
+if menu == "Cluster Analysis":
+    cluster_analysis(df)
 
-# ---- Custom Clustering Section ----
-elif section == "Custom Clustering":
-    st.header("⚙️ Custom Clustering Explorer")
+elif menu == "Analyze New Customer":
+    st.header("🔍 Analyze New Customer Data")
+    
+    st.markdown("Upload a CSV file containing **one row** of new customer data with the same features as model training data.")
+    uploaded_file = st.file_uploader("Upload Customer CSV", type=['csv'])
 
-    method = st.selectbox("Choose Clustering Algorithm", ["Agglomerative", "DBSCAN", "K-Means", "GMM"])
-    df_custom = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']].copy()
-
-    if method == "Agglomerative":
-        n_clusters = st.slider("Number of Clusters", 2, 10, 4)
-        model = AgglomerativeClustering(n_clusters=n_clusters)
-        labels = model.fit_predict(df_custom)
-
-    elif method == "DBSCAN":
-        eps = st.slider("Epsilon (eps)", 1.0, 20.0, 10.0)
-        min_samples = st.slider("Minimum Samples", 1, 10, 5)
-        model = DBSCAN(eps=eps, min_samples=min_samples)
-        labels = model.fit_predict(df_custom)
-
-    elif method == "K-Means":
-        n_clusters = st.slider("Number of Clusters", 2, 10, 4)
-        model = KMeans(n_clusters=n_clusters, random_state=42)
-        labels = model.fit_predict(df_custom)
-
-    elif method == "GMM":
-        n_clusters = st.slider("Number of Clusters", 2, 10, 4)
-        model = GaussianMixture(n_components=n_clusters, random_state=42)
-        labels = model.fit_predict(df_custom)
-
-    df_custom['Custom_Cluster'] = labels
-
-    st.subheader("Clustered Data Preview")
-    st.dataframe(df_custom.head())
-
-    fig = px.scatter_3d(
-        df_custom,
-        x='Age_original',
-        y='Annual_Income (£K)_original',
-        z='Spending_Score_original',
-        color=df_custom['Custom_Cluster'].astype(str),
-        title=f"{method} Clustering Result"
-    )
-    st.plotly_chart(fig)
-
-    if method != "DBSCAN" or len(set(labels)) > 1:
-        valid_data = df_custom[df_custom['Custom_Cluster'] != -1]
-        X_valid = valid_data[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
-        y_valid = valid_data['Custom_Cluster']
-
-        if y_valid.nunique() > 1:
-            sil = silhouette_score(X_valid, y_valid)
-            db = davies_bouldin_score(X_valid, y_valid)
-            ch = calinski_harabasz_score(X_valid, y_valid)
-
-            st.markdown("### 📈 Clustering Quality Metrics")
-            st.markdown(f"- **Silhouette Score:** {sil:.2f}")
-            st.markdown(f"- **Davies-Bouldin Index:** {db:.2f}")
-            st.markdown(f"- **Calinski-Harabasz Score:** {ch:.2f}")
-        else:
-            st.warning("⚠️ Not enough clusters to compute metrics.")
+    if uploaded_file:
+        try:
+            new_data = pd.read_csv(uploaded_file)
+            if new_data.shape[0] != 1:
+                st.error("Please upload a file with exactly one customer (one row).")
+            else:
+                analyze_new_customer(new_data, model, X_train, cluster_k_info)
+        except Exception as e:
+            st.error("Error processing file: " + str(e))
