@@ -36,7 +36,10 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
     st.subheader("👤 Most Similar Customer in Cluster:")
     st.dataframe(most_similar_customer[X_train.columns])
 
- # Radar chart comparison with improved style
+    # Calculate the average of the cluster
+    cluster_mean = similar_customers[X_train.columns].mean()
+
+    # Radar chart comparison with improved style
     trace1 = go.Scatterpolar(
         r=cluster_mean,
         theta=X_train.columns,
@@ -56,6 +59,22 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
         fillcolor='rgba(255, 140, 0, 0.3)',
         opacity=0.8
     )
+
+    # Create the figure and update layout
+    fig = go.Figure(data=[trace1, trace2])
+
+    fig.update_layout(
+        title=f'Comparison: New Customer vs Cluster {predicted_cluster}',
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, max(cluster_mean.max(), new_customer.max()) + 1]),
+            angularaxis=dict(tickmode='array', tickvals=list(range(len(X_train.columns))), ticktext=X_train.columns)
+        ),
+        template="plotly_dark",
+        font=dict(family="Arial, sans-serif", size=12, color="white"),
+        showlegend=True
+    )
+
+    st.plotly_chart(fig)
 
 # ---- Streamlit App UI ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
