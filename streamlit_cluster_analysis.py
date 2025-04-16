@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics.pairwise import cosine_similarity
 from plotly.subplots import make_subplots
+from sklearn.cluster import AgglomerativeClustering, DBSCAN
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+from scipy.cluster.hierarchy import linkage, dendrogram
 
 # ---- Load Pretrained Artifacts ----
 model = joblib.load("best_rf.pkl")
@@ -96,7 +99,7 @@ if section == "Cluster Analysis":
         st.stop()
 
     st.sidebar.header("Filter Options")
-    cluster_type = st.sidebar.selectbox("Select Clustering Method", ["Cluster_gmm", "Cluster_k"])
+    cluster_method = st.sidebar.selectbox("Select Clustering Method", ["K-Means", "GMM", "Agglomerative", "DBSCAN"])
 
     st.sidebar.markdown("### Demographics Filters")
     min_age, max_age = int(df['Age_original'].min()), int(df['Age_original'].max())
@@ -108,15 +111,60 @@ if section == "Cluster Analysis":
                      (df['Annual_Income (£K)_original'] >= income_range[0]) &
                      (df['Annual_Income (£K)_original'] <= income_range[1])]
 
+    def apply_clustering(method, df):
+        X = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
+
+        if method == "K-Means":
+            return df['Cluster_k'], "Cluster_k"
+        elif method == "GMM":
+            return df['Cluster_gmm'], "Cluster_gmm"
+        elif method == "Agglomerative":
+            model = AgglomerativeClustering(n_clusters=5)
+            labels = model.fit_predict(X)
+            df['Cluster_agg'] = labels
+            return labels, "Cluster_agg"
+        elif method == "DBSCAN":
+            model = DBSCAN(eps=10, min_samples=5)
+            labels = model.fit_predict(X)
+            df['Cluster_db'] = labels
+            return labels, "Cluster_db"
+
+    labels, label_col = apply_clustering(cluster_method, df_filtered)
+    df_filtered['Active_Cluster'] = labels
+
+    st.markdown("### 📈 Clustering Quality Metrics")
+    valid_idx = df_filtered['Active_Cluster'] != -1
+    X_valid = df_filtered[valid_idx][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
+    labels_valid = df_filtered[valid_idx]['Active_Cluster']
+
+    if len(set(labels_valid)) > 1:
+        sil = silhouette_score(X_valid, labels_valid)
+        db = davies_bouldin_score(X_valid, labels_valid)
+        ch = calinski_harabasz_score(X_valid, labels_valid)
+
+        st.markdown(f"- **Silhouette Score:** {sil:.2f}")
+        st.markdown(f"- **Davies-Bouldin Index:** {db:.2f}")
+        st.markdown(f"- **Calinski-Harabasz Score:** {ch:.2f}")
+    else:
+        st.warning("Not enough clusters to compute metrics.")
+
+    if cluster_method == "Agglomerative":
+        st.markdown("### 🧬 Hierarchical Dendrogram")
+        X = df_filtered[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
+        Z = linkage(X, method='ward')
+        fig_dendro, ax = plt.subplots(figsize=(10, 4))
+        dendrogram(Z, truncate_mode='level', p=5, ax=ax)
+        st.pyplot(fig_dendro)
+
     st.markdown(f"Showing customers aged between **{age_range[0]} and {age_range[1]}** years "
                 f"with annual income between **£{income_range[0]}K and £{income_range[1]}K**.")
 
     st.header("Cluster Ranking Based on Average Spending Score")
-    cluster_spending = df_filtered.groupby(cluster_type)['Spending_Score_original'].mean().sort_values(ascending=False)
+    cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
     st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
 
     st.subheader("👥 Cluster Sizes")
-    cluster_counts = df_filtered[cluster_type].value_counts().sort_index()
+    cluster_counts = df_filtered['Active_Cluster'].value_counts().sort_index()
     fig_bar, ax_bar = plt.subplots(figsize=(6, 4))
     sns.barplot(x=cluster_counts.index, y=cluster_counts.values, palette="Set2", ax=ax_bar)
     ax_bar.set_xlabel("Cluster")
@@ -124,8 +172,8 @@ if section == "Cluster Analysis":
     ax_bar.set_title("Cluster Sizes")
     st.pyplot(fig_bar)
 
-    for cluster_label in sorted(df_filtered[cluster_type].unique()):
-        cluster_data = df_filtered[df_filtered[cluster_type] == cluster_label]
+    for cluster_label in sorted(df_filtered['Active_Cluster'].unique()):
+        cluster_data = df_filtered[df_filtered['Active_Cluster'] == cluster_label]
 
         fig = make_subplots(
             rows=2, cols=2,
