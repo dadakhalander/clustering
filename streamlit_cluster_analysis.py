@@ -89,7 +89,7 @@ if section == "Cluster Analysis":
     feature_importance_section = st.sidebar.checkbox("Show Feature Importance", False)
 
     if feature_importance_section:
-        with st.expander("🔍 Feature Importance Chart"):
+        with st.expander(" Feature Importance Chart"):
             st.subheader("Feature Importance Analysis")
             feature_importances = model.feature_importances_
             feature_names = X_train.columns
