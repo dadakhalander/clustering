@@ -1,72 +1,11 @@
 import streamlit as st
 import pandas as pd
-import joblib
-import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics.pairwise import cosine_similarity
 
-# ---- Load Pretrained Artifacts ----
-model = joblib.load("best_rf.pkl")  # Trained Random Forest model
-X_train = joblib.load("X_train.pkl")  # Features used to train the model
-cluster_k_info = joblib.load("cluster_k_info.pkl")  # Dictionary of clustered data
-
-# ---- Function to Analyze New Customer ----
-def analyze_new_customer(new_data, model, X_train, cluster_info):
-    new_customer = pd.DataFrame([new_data])
-    new_customer = new_customer[X_train.columns]  # Ensure same column order
-
-    # Convert binary columns
-    new_customer['Gender_Female'] = new_customer['Gender_Female'].astype(int)
-    new_customer['Gender_Male'] = new_customer['Gender_Male'].astype(int)
-
-    # Predict cluster
-    predicted_cluster = model.predict(new_customer)[0]
-    st.subheader(f" Predicted Cluster: {predicted_cluster}")
-
-    similar_customers = cluster_info[predicted_cluster].copy()
-    similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
-    similar_customers['Gender_Male'] = similar_customers['Gender_Male'].astype(int)
-
-    # Cosine similarity
-    sims = cosine_similarity(similar_customers[X_train.columns], new_customer)
-    most_similar_index = sims.argmax()
-    most_similar_customer = similar_customers.iloc[most_similar_index]
-
-    st.subheader("👤 Most Similar Customer in Cluster:")
-    st.dataframe(most_similar_customer[X_train.columns])
-
-    # Radar Chart
-    cluster_mean = similar_customers[X_train.columns].mean()
-
-    fig = go.Figure(data=[
-        go.Scatterpolar(r=cluster_mean,
-                        theta=X_train.columns,
-                        name='Cluster Mean',
-                        line=dict(color='blue')),
-        go.Scatterpolar(r=new_customer.values[0],
-                        theta=X_train.columns,
-                        name='New Customer',
-                        line=dict(color='red'))
-    ])
-    fig.update_layout(title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
-                      polar=dict(radialaxis=dict(visible=True)))
-    st.plotly_chart(fig)
-
-# ---- Streamlit App UI ----
-st.set_page_config(page_title="Customer Cluster Analysis & Visualization", layout="wide")
-st.title("Customer Cluster Analysis & Visualization Dashboard")
-
-# Sidebar Filters
-st.sidebar.header("Customer Segmentation Filters")
-cluster_type = st.sidebar.selectbox("Select Clustering Method", ["Cluster_gmm", "Cluster_k"])
-
-st.sidebar.markdown("### Demographics Filters")
-min_age, max_age = int(df['Age_original'].min()), int(df['Age_original'].max())
-min_income, max_income = int(df['Annual_Income (£K)_original'].min()), int(df['Annual_Income (£K)_original'].max())
-
-age_range = st.sidebar.slider("Select Age Range", min_age, max_age, (25, 60))
-income_range = st.sidebar.slider("Select Income Range (£K)", min_income, max_income, (20, 100))
+# Page Config
+st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
+st.title("Customer Segmentation Analysis Dashboard")
 
 # Load dataset
 @st.cache_data
@@ -85,7 +24,26 @@ if missing_cols:
     st.error(f"Missing columns in dataset: {missing_cols}")
     st.stop()
 
-# Filter dataset based on inputs
+# Data Cleaning: Convert columns to numeric, forcing errors to NaN
+df['Age_original'] = pd.to_numeric(df['Age_original'], errors='coerce')
+df['Annual_Income (£K)_original'] = pd.to_numeric(df['Annual_Income (£K)_original'], errors='coerce')
+df['Spending_Score_original'] = pd.to_numeric(df['Spending_Score_original'], errors='coerce')
+
+# Handle missing values
+df = df.dropna(subset=['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original'])
+
+# Sidebar Filters
+st.sidebar.header("Filter Options")
+cluster_type = st.sidebar.selectbox("Select Clustering Method", ["Cluster_gmm", "Cluster_k"])
+
+st.sidebar.markdown("### Demographics Filters")
+min_age, max_age = int(df['Age_original'].min()), int(df['Age_original'].max())
+min_income, max_income = int(df['Annual_Income (£K)_original'].min()), int(df['Annual_Income (£K)_original'].max())
+
+age_range = st.sidebar.slider("Select Age Range", min_age, max_age, (25, 60))
+income_range = st.sidebar.slider("Select Income Range (£K)", min_income, max_income, (20, 100))
+
+# Filter dataset
 df_filtered = df[
     (df['Age_original'] >= age_range[0]) & (df['Age_original'] <= age_range[1]) &
     (df['Annual_Income (£K)_original'] >= income_range[0]) & (df['Annual_Income (£K)_original'] <= income_range[1])
@@ -110,29 +68,8 @@ ax_bar.set_ylabel("Number of Customers")
 ax_bar.set_title("Cluster Sizes")
 st.pyplot(fig_bar)
 
-# ---- Customer Prediction Form ----
-st.header("New Customer Prediction")
-with st.form(key='customer_form'):
-    age = st.number_input('Age', min_value=0, max_value=100, value=32)
-    income = st.number_input('Annual Income (£K)', min_value=0, max_value=500, value=70)
-    spending_score = st.number_input('Spending Score', min_value=0, max_value=100, value=85)
-    gender = st.radio('⚧ Gender', ['Female', 'Male'], index=0)
-
-    submitted = st.form_submit_button("Analyze")
-
-if submitted:
-    gender_female = 1 if gender == 'Female' else 0
-    gender_male = 1 if gender == 'Male' else 0
-
-    new_data = {
-        'Age_original': age,
-        'Annual_Income (£K)_original': income,
-        'Spending_Score_original': spending_score,
-        'Gender_Female': gender_female,
-        'Gender_Male': gender_male
-    }
-
-    analyze_new_customer(new_data, model, X_train, cluster_k_info)
+# Define Colors
+cluster_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
 
 # Cluster Deep Dive
 for cluster_label in sorted(df_filtered[cluster_type].unique()):
@@ -140,7 +77,7 @@ for cluster_label in sorted(df_filtered[cluster_type].unique()):
     st.subheader(f"Cluster {cluster_label} Analysis")
 
     cluster_data = df_filtered[df_filtered[cluster_type] == cluster_label]
-    color = sns.color_palette("Set2")[cluster_label % len(sns.color_palette("Set2"))]
+    color = cluster_colors[cluster_label % len(cluster_colors)]
 
     # Gender breakdown
     gender_counts = cluster_data['Gender_Male'].value_counts()
@@ -212,4 +149,3 @@ for feature in ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_
         ax2.set_xlabel("K-Means Cluster")
         ax2.set_ylabel(feature)
         st.pyplot(fig2)
-
