@@ -233,3 +233,28 @@ elif section == "Analyze New Customer Data":
         }
 
         analyze_new_customer(new_data, model, X_train, cluster_k_info)
+
+
+
+
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Add to Sidebar
+feature_importance_section = st.sidebar.checkbox("Show Feature Importance", False)
+
+if feature_importance_section:
+    st.header("Feature Importance Analysis")
+    feature_importances = model.feature_importances_
+    feature_names = X_train.columns
+    feature_df = pd.DataFrame({
+        'Feature': feature_names,
+        'Importance': feature_importances
+    })
+    feature_df = feature_df.sort_values(by='Importance', ascending=False)
+
+    plt.figure(figsize=(8, 6))
+    sns.barplot(x='Importance', y='Feature', data=feature_df, palette='Blues_d')
+    st.pyplot()
+
