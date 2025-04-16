@@ -24,7 +24,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
     new_customer['Gender_Male'] = new_customer['Gender_Male'].astype(int)
 
     predicted_cluster = model.predict(new_customer)[0]
-    st.subheader(f" Predicted Cluster: {predicted_cluster}")
+    st.subheader(f"🎯 Predicted Cluster: {predicted_cluster}")
 
     similar_customers = cluster_info[predicted_cluster].copy()
     similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
@@ -63,7 +63,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
     fig = go.Figure(data=[trace1, trace2])
     fig.update_layout(
-        title=f'Comparison: New Customer vs Cluster {predicted_cluster}',
+        title=f'📊 Comparison: New Customer vs Cluster {predicted_cluster}',
         polar=dict(
             radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1]),
             angularaxis=dict(tickmode='array', tickvals=list(range(len(X_train.columns))), ticktext=X_train.columns)
@@ -77,10 +77,10 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
 # ---- Streamlit App UI ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
-st.title("Customer Segmentation Analysis Dashboard")
+st.title("📊 Customer Segmentation Analysis Dashboard")
 
 # ---- Sidebar Navigation ----
-section = st.sidebar.radio("Choose Section", ["Cluster Analysis", "Analyze New Customer Data"])
+section = st.sidebar.radio("🔎 Choose Section", ["Cluster Analysis", "Analyze New Customer Data"])
 
 if section == "Cluster Analysis":
     st.header("Cluster Analysis with Existing Data")
@@ -98,14 +98,14 @@ if section == "Cluster Analysis":
         st.error(f"Missing columns in dataset: {missing_cols}")
         st.stop()
 
-    st.sidebar.header("Filter Options")
-    cluster_method = st.sidebar.selectbox("Select Clustering Method", ["K-Means", "GMM", "Agglomerative", "DBSCAN"])
+    st.sidebar.header("🛠️ Filter Options")
+    cluster_method = st.sidebar.selectbox("Clustering Method", ["K-Means", "GMM", "Agglomerative", "DBSCAN"])
 
-    st.sidebar.markdown("### Demographics Filters")
+    st.sidebar.markdown("### Demographics")
     min_age, max_age = int(df['Age_original'].min()), int(df['Age_original'].max())
     min_income, max_income = int(df['Annual_Income (£K)_original'].min()), int(df['Annual_Income (£K)_original'].max())
-    age_range = st.sidebar.slider("Select Age Range", min_age, max_age, (25, 60))
-    income_range = st.sidebar.slider("Select Income Range (£K)", min_income, max_income, (20, 100))
+    age_range = st.sidebar.slider("Age Range", min_age, max_age, (25, 60))
+    income_range = st.sidebar.slider("Income Range (£K)", min_income, max_income, (20, 100))
 
     df_filtered = df[(df['Age_original'] >= age_range[0]) & (df['Age_original'] <= age_range[1]) &
                      (df['Annual_Income (£K)_original'] >= income_range[0]) &
@@ -132,7 +132,7 @@ if section == "Cluster Analysis":
     labels, label_col = apply_clustering(cluster_method, df_filtered)
     df_filtered['Active_Cluster'] = labels
 
-    st.markdown("###  Clustering Quality Metrics")
+    st.markdown("### 📈 Clustering Quality Metrics")
     valid_idx = df_filtered['Active_Cluster'] != -1
     X_valid = df_filtered[valid_idx][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
     labels_valid = df_filtered[valid_idx]['Active_Cluster']
@@ -146,24 +146,24 @@ if section == "Cluster Analysis":
         st.markdown(f"- **Davies-Bouldin Index:** {db:.2f}")
         st.markdown(f"- **Calinski-Harabasz Score:** {ch:.2f}")
     else:
-        st.warning("Not enough clusters to compute metrics.")
+        st.warning("⚠️ Not enough clusters to compute metrics.")
 
     if cluster_method == "Agglomerative":
-        st.markdown("###  Hierarchical Dendrogram")
+        st.markdown("### 🌳 Hierarchical Dendrogram")
         X = df_filtered[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
         Z = linkage(X, method='ward')
         fig_dendro, ax = plt.subplots(figsize=(10, 4))
         dendrogram(Z, truncate_mode='level', p=5, ax=ax)
         st.pyplot(fig_dendro)
 
-    st.markdown(f"Showing customers aged between **{age_range[0]} and {age_range[1]}** years "
-                f"with annual income between **£{income_range[0]}K and £{income_range[1]}K**.")
+    st.markdown(f"📍 Showing customers aged between **{age_range[0]}–{age_range[1]}** "
+                f"with income between **£{income_range[0]}K–£{income_range[1]}K**.")
 
-    st.header("Cluster Ranking Based on Average Spending Score")
+    st.header("💰 Cluster Ranking by Avg. Spending Score")
     cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
     st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
 
-    st.subheader(" Cluster Sizes")
+    st.subheader("👥 Cluster Sizes")
     cluster_counts = df_filtered['Active_Cluster'].value_counts().sort_index()
     fig_bar, ax_bar = plt.subplots(figsize=(6, 4))
     sns.barplot(x=cluster_counts.index, y=cluster_counts.values, palette="Set2", ax=ax_bar)
@@ -180,17 +180,15 @@ if section == "Cluster Analysis":
             specs=[[{"type": "histogram"}, {"type": "pie"}],
                    [{"type": "box"}, {"type": "violin"}]],
             subplot_titles=(
-                f'Spending Score Distribution - Cluster {cluster_label}',
-                f'Gender Distribution - Cluster {cluster_label}',
+                f'Spending Score - Cluster {cluster_label}',
+                f'Gender Split - Cluster {cluster_label}',
                 f'Age Box Plot - Cluster {cluster_label}',
-                f'Annual Income Violin Plot - Cluster {cluster_label}'
+                f'Income Violin - Cluster {cluster_label}'
             )
         )
 
         fig.add_trace(go.Histogram(x=cluster_data['Spending_Score_original'], nbinsx=10,
-                                   marker_color='skyblue', name='Spending Score'), row=1, col=1)
-        fig.update_xaxes(title_text="Spending Score", row=1, col=1)
-        fig.update_yaxes(title_text="Frequency", row=1, col=1)
+                                   marker_color='skyblue'), row=1, col=1)
 
         gender_counts = cluster_data['Gender_Male'].value_counts()
         fig.add_trace(go.Pie(labels=['Male', 'Female'],
@@ -199,16 +197,14 @@ if section == "Cluster Analysis":
                              textinfo='percent+label'), row=1, col=2)
 
         fig.add_trace(go.Box(y=cluster_data['Age_original'],
-                             name='Age', marker_color='lightgreen', boxmean='sd'), row=2, col=1)
-        fig.update_yaxes(title_text="Age", row=2, col=1)
+                             marker_color='lightgreen', boxmean='sd'), row=2, col=1)
 
         fig.add_trace(go.Violin(y=cluster_data['Annual_Income (£K)_original'],
                                 box_visible=True, meanline_visible=True,
-                                line_color='orange', name='Annual Income (£K)'), row=2, col=2)
-        fig.update_yaxes(title_text="Annual Income (£K)", row=2, col=2)
+                                line_color='orange'), row=2, col=2)
 
         fig.update_layout(
-            title_text=f'Cluster {cluster_label} Detailed Analysis',
+            title_text=f'📊 Cluster {cluster_label} Detailed Analysis',
             showlegend=False, height=900, width=1000
         )
 
@@ -221,7 +217,6 @@ elif section == "Analyze New Customer Data":
         income = st.number_input('Annual Income (£K)', min_value=0, max_value=500, value=70)
         spending_score = st.number_input('Spending Score', min_value=0, max_value=100, value=85)
         gender = st.radio('⚧ Gender', ['Female', 'Male'], index=0)
-
         submitted = st.form_submit_button("Analyze")
 
     if submitted:
