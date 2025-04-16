@@ -232,14 +232,7 @@ elif section == "Analyze New Customer Data":
             'Gender_Male': gender_male
         }
 
-        analyze_new_customer(new_data, model, X_train, cluster_k_info)
-
-
-
-
-
-import seaborn as sns
-import matplotlib.pyplot as plt
+        analyze_new_customer(new_data, model, X_train, cluster_k_info) 
 
 # Add to Sidebar
 feature_importance_section = st.sidebar.checkbox("Show Feature Importance", False)
@@ -257,4 +250,3 @@ if feature_importance_section:
     plt.figure(figsize=(8, 6))
     sns.barplot(x='Importance', y='Feature', data=feature_df, palette='Blues_d')
     st.pyplot()
-
