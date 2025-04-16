@@ -1,234 +1,91 @@
 import streamlit as st
 import pandas as pd
-import joblib
-import plotly.graph_objects as go
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics.pairwise import cosine_similarity
-from plotly.subplots import make_subplots
-from sklearn.cluster import AgglomerativeClustering, DBSCAN
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from scipy.cluster.hierarchy import linkage, dendrogram
+from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import StandardScaler
+from scipy.spatial.distance import cdist
+import plotly.express as px
+import plotly.graph_objects as go
+import io
 
-# ---- Load Pretrained Artifacts ----
-model = joblib.load("best_rf.pkl")
-X_train = joblib.load("X_train.pkl")
-cluster_k_info = joblib.load("cluster_k_info.pkl")
+# Load data
+@st.cache_data
+def load_data():
+    df = pd.read_csv("E-Commerce_Data_Set_4034.csv")
+    return df
 
-# ---- Function to Analyze New Customer ----
-def analyze_new_customer(new_data, model, X_train, cluster_info):
-    new_customer = pd.DataFrame([new_data])
-    new_customer = new_customer[X_train.columns]
+df = load_data()
 
-    new_customer['Gender_Female'] = new_customer['Gender_Female'].astype(int)
-    new_customer['Gender_Male'] = new_customer['Gender_Male'].astype(int)
+# Sidebar filters
+st.sidebar.header("Filters")
+selected_gender = st.sidebar.multiselect("Select Gender", options=df["Gender"].unique(), default=df["Gender"].unique())
+filtered_data = df[df["Gender"].isin(selected_gender)]
 
-    predicted_cluster = model.predict(new_customer)[0]
-    st.subheader(f" Predicted Cluster: {predicted_cluster}")
+# Features for clustering
+features = ["Age", "Annual Income (k$)", "Spending Score (1-100)"]
+data = filtered_data[features]
+scaler = StandardScaler()
+data_scaled = scaler.fit_transform(data)
 
-    similar_customers = cluster_info[predicted_cluster].copy()
-    similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
-    similar_customers['Gender_Male'] = similar_customers['Gender_Male'].astype(int)
+# Auto-ML for optimal K
+st.subheader(" Optimal Cluster Count Detection")
 
-    sims = cosine_similarity(similar_customers[X_train.columns], new_customer)
-    most_similar_index = sims.argmax()
-    most_similar_customer = similar_customers.iloc[most_similar_index]
+elbow_wcss = []
+silhouette_scores = []
+k_values = list(range(2, 11))
 
-    st.subheader(" Most Similar Customer in Cluster:")
-    st.dataframe(most_similar_customer[X_train.columns])
+for k in k_values:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(data_scaled)
+    elbow_wcss.append(kmeans.inertia_)
+    labels = kmeans.labels_
+    silhouette_scores.append(silhouette_score(data_scaled, labels))
 
-    cluster_mean = similar_customers[X_train.columns].mean()
-    cluster_mean_max = cluster_mean.max()
-    new_customer_max = new_customer.max().values[0]
+fig_elbow = go.Figure()
+fig_elbow.add_trace(go.Scatter(x=k_values, y=elbow_wcss, mode='lines+markers', name='WCSS'))
+fig_elbow.update_layout(title='Elbow Method', xaxis_title='Number of clusters (k)', yaxis_title='WCSS')
+st.plotly_chart(fig_elbow)
 
-    trace1 = go.Scatterpolar(
-        r=cluster_mean,
-        theta=X_train.columns,
-        name='Cluster Mean',
-        line=dict(color='royalblue', width=3),
-        fill='toself',
-        fillcolor='rgba(65, 105, 225, 0.3)',
-        opacity=0.8
-    )
+fig_silhouette = go.Figure()
+fig_silhouette.add_trace(go.Scatter(x=k_values, y=silhouette_scores, mode='lines+markers', name='Silhouette Score'))
+fig_silhouette.update_layout(title='Silhouette Scores vs. k', xaxis_title='Number of clusters (k)', yaxis_title='Silhouette Score')
+st.plotly_chart(fig_silhouette)
 
-    trace2 = go.Scatterpolar(
-        r=new_customer.values[0],
-        theta=X_train.columns,
-        name='New Customer',
-        line=dict(color='darkorange', width=3),
-        fill='toself',
-        fillcolor='rgba(255, 140, 0, 0.3)',
-        opacity=0.8
-    )
+# Gap Statistic (optional for simplicity)
+# Due to complexity, not implemented here directly – can be added with gap-stat module if required
 
-    fig = go.Figure(data=[trace1, trace2])
-    fig.update_layout(
-        title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1]),
-            angularaxis=dict(tickmode='array', tickvals=list(range(len(X_train.columns))), ticktext=X_train.columns)
-        ),
-        template="plotly_dark",
-        font=dict(family="Arial, sans-serif", size=12, color="white"),
-        showlegend=True
-    )
+# Choose number of clusters
+st.sidebar.subheader("Model Parameters")
+k = st.sidebar.slider("Number of Clusters", min_value=2, max_value=10, value=4)
+model_type = st.sidebar.selectbox("Select Clustering Model", ("KMeans", "GMM"))
 
-    st.plotly_chart(fig)
+if model_type == "KMeans":
+    model = KMeans(n_clusters=k, random_state=42)
+    cluster_labels = model.fit_predict(data_scaled)
+else:
+    model = GaussianMixture(n_components=k, random_state=42)
+    cluster_labels = model.fit_predict(data_scaled)
 
-# ---- Streamlit App UI ----
-st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
-st.title(" Customer Segmentation Analysis Dashboard")
+# Add cluster labels to data
+data_with_labels = filtered_data.copy()
+data_with_labels["Cluster"] = cluster_labels
 
-# ---- Sidebar Navigation ----
-section = st.sidebar.radio(" Choose Section", ["Cluster Analysis", "Analyze New Customer Data"])
+# Visualizations
+st.subheader(" Cluster Visualization")
+fig_cluster = px.scatter_3d(data_with_labels, x="Age", y="Annual Income (k$)", z="Spending Score (1-100)",
+                            color="Cluster", symbol="Gender",
+                            title="Customer Clusters (3D View)",
+                            width=900, height=600)
+st.plotly_chart(fig_cluster)
 
-if section == "Cluster Analysis":
-    st.header("Cluster Analysis with Existing Data")
+st.subheader(" Cluster Distribution")
+st.write(data_with_labels.groupby("Cluster")[features].mean())
 
-    @st.cache_data
-    def load_data():
-        return pd.read_csv("clustering_results.csv")
-
-    df = load_data()
-
-    required_columns = ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original',
-                        'Gender_Male', 'Cluster_gmm', 'Cluster_k']
-    missing_cols = [col for col in required_columns if col not in df.columns]
-    if missing_cols:
-        st.error(f"Missing columns in dataset: {missing_cols}")
-        st.stop()
-
-    st.sidebar.header(" Filter Options")
-    cluster_method = st.sidebar.selectbox("Clustering Method", ["K-Means", "GMM", "Agglomerative", "DBSCAN"])
-
-    st.sidebar.markdown("### Demographics")
-    min_age, max_age = int(df['Age_original'].min()), int(df['Age_original'].max())
-    min_income, max_income = int(df['Annual_Income (£K)_original'].min()), int(df['Annual_Income (£K)_original'].max())
-    age_range = st.sidebar.slider("Age Range", min_age, max_age, (25, 60))
-    income_range = st.sidebar.slider("Income Range (£K)", min_income, max_income, (20, 100))
-
-    df_filtered = df[(df['Age_original'] >= age_range[0]) & (df['Age_original'] <= age_range[1]) &
-                     (df['Annual_Income (£K)_original'] >= income_range[0]) &
-                     (df['Annual_Income (£K)_original'] <= income_range[1])]
-
-    def apply_clustering(method, df):
-        X = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
-
-        if method == "K-Means":
-            return df['Cluster_k'], "Cluster_k"
-        elif method == "GMM":
-            return df['Cluster_gmm'], "Cluster_gmm"
-        elif method == "Agglomerative":
-            model = AgglomerativeClustering(n_clusters=5)
-            labels = model.fit_predict(X)
-            df['Cluster_agg'] = labels
-            return labels, "Cluster_agg"
-        elif method == "DBSCAN":
-            model = DBSCAN(eps=10, min_samples=5)
-            labels = model.fit_predict(X)
-            df['Cluster_db'] = labels
-            return labels, "Cluster_db"
-
-    labels, label_col = apply_clustering(cluster_method, df_filtered)
-    df_filtered['Active_Cluster'] = labels
-
-    st.markdown("###  Clustering Quality Metrics")
-    valid_idx = df_filtered['Active_Cluster'] != -1
-    X_valid = df_filtered[valid_idx][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
-    labels_valid = df_filtered[valid_idx]['Active_Cluster']
-
-    if len(set(labels_valid)) > 1:
-        sil = silhouette_score(X_valid, labels_valid)
-        db = davies_bouldin_score(X_valid, labels_valid)
-        ch = calinski_harabasz_score(X_valid, labels_valid)
-
-        st.markdown(f"- **Silhouette Score:** {sil:.2f}")
-        st.markdown(f"- **Davies-Bouldin Index:** {db:.2f}")
-        st.markdown(f"- **Calinski-Harabasz Score:** {ch:.2f}")
-    else:
-        st.warning("⚠ Not enough clusters to compute metrics.")
-
-    if cluster_method == "Agglomerative":
-        st.markdown("###  Hierarchical Dendrogram")
-        X = df_filtered[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
-        Z = linkage(X, method='ward')
-        fig_dendro, ax = plt.subplots(figsize=(10, 4))
-        dendrogram(Z, truncate_mode='level', p=5, ax=ax)
-        st.pyplot(fig_dendro)
-
-    st.markdown(f" Showing customers aged between **{age_range[0]}–{age_range[1]}** "
-                f"with income between **£{income_range[0]}K–£{income_range[1]}K**.")
-
-    st.header(" Cluster Ranking by Avg. Spending Score")
-    cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
-    st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
-
-    st.subheader("👥 Cluster Sizes")
-    cluster_counts = df_filtered['Active_Cluster'].value_counts().sort_index()
-    fig_bar, ax_bar = plt.subplots(figsize=(6, 4))
-    sns.barplot(x=cluster_counts.index, y=cluster_counts.values, palette="Set2", ax=ax_bar)
-    ax_bar.set_xlabel("Cluster")
-    ax_bar.set_ylabel("Number of Customers")
-    ax_bar.set_title("Cluster Sizes")
-    st.pyplot(fig_bar)
-
-    for cluster_label in sorted(df_filtered['Active_Cluster'].unique()):
-        cluster_data = df_filtered[df_filtered['Active_Cluster'] == cluster_label]
-
-        fig = make_subplots(
-            rows=2, cols=2,
-            specs=[[{"type": "histogram"}, {"type": "pie"}],
-                   [{"type": "box"}, {"type": "violin"}]],
-            subplot_titles=(
-                f'Spending Score - Cluster {cluster_label}',
-                f'Gender Split - Cluster {cluster_label}',
-                f'Age Box Plot - Cluster {cluster_label}',
-                f'Income Violin - Cluster {cluster_label}'
-            )
-        )
-
-        fig.add_trace(go.Histogram(x=cluster_data['Spending_Score_original'], nbinsx=10,
-                                   marker_color='skyblue'), row=1, col=1)
-
-        gender_counts = cluster_data['Gender_Male'].value_counts()
-        fig.add_trace(go.Pie(labels=['Male', 'Female'],
-                             values=[gender_counts.get(1, 0), gender_counts.get(0, 0)],
-                             marker_colors=['skyblue', 'lightcoral'],
-                             textinfo='percent+label'), row=1, col=2)
-
-        fig.add_trace(go.Box(y=cluster_data['Age_original'],
-                             marker_color='lightgreen', boxmean='sd'), row=2, col=1)
-
-        fig.add_trace(go.Violin(y=cluster_data['Annual_Income (£K)_original'],
-                                box_visible=True, meanline_visible=True,
-                                line_color='orange'), row=2, col=2)
-
-        fig.update_layout(
-            title_text=f' Cluster {cluster_label} Detailed Analysis',
-            showlegend=False, height=900, width=1000
-        )
-
-        st.plotly_chart(fig)
-
-elif section == "Analyze New Customer Data":
-    st.header("Analyze New Customer Data")
-    with st.form(key='customer_form'):
-        age = st.number_input('Age', min_value=0, max_value=100, value=32)
-        income = st.number_input('Annual Income (£K)', min_value=0, max_value=500, value=70)
-        spending_score = st.number_input('Spending Score', min_value=0, max_value=100, value=85)
-        gender = st.radio('⚧ Gender', ['Female', 'Male'], index=0)
-        submitted = st.form_submit_button("Analyze")
-
-    if submitted:
-        gender_female = 1 if gender == 'Female' else 0
-        gender_male = 1 if gender == 'Male' else 0
-
-        new_data = {
-            'Age_original': age,
-            'Annual_Income (£K)_original': income,
-            'Spending_Score_original': spending_score,
-            'Gender_Female': gender_female,
-            'Gender_Male': gender_male
-        }
-
-        analyze_new_customer(new_data, model, X_train, cluster_k_info)
+# Downloadable output
+buffer = io.BytesIO()
+data_with_labels.to_csv(buffer, index=False)
+st.download_button(" Download Clustered Data", data=buffer.getvalue(), file_name="clustered_customers.csv", mime="text/csv")
