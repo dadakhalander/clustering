@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 import joblib
 import plotly.graph_objects as go
-import seaborn as sns
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ---- Load Pretrained Artifacts ----
-model = joblib.load("best_rf.pkl")  # Trained Random Forest model
-X_train = joblib.load("X_train.pkl")  # Features used to train the model
+model = joblib.load("best_rf.pkl")               # Trained Random Forest model
+X_train = joblib.load("X_train.pkl")             # Features used to train the model
 cluster_k_info = joblib.load("cluster_k_info.pkl")  # Dictionary of clustered data
 
 # ---- Function to Analyze New Customer ----
@@ -22,7 +22,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
     # Predict cluster
     predicted_cluster = model.predict(new_customer)[0]
-    st.subheader(f"Predicted Cluster: {predicted_cluster}")
+    st.subheader(f" Predicted Cluster: {predicted_cluster}")
 
     similar_customers = cluster_info[predicted_cluster].copy()
     similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
@@ -49,13 +49,16 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
                         name='New Customer',
                         line=dict(color='red'))
     ])
-    fig.update_layout(title=f'Comparison: New Customer vs Cluster {predicted_cluster}',
+    fig.update_layout(title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
                       polar=dict(radialaxis=dict(visible=True)))
     st.plotly_chart(fig)
 
 # ---- Streamlit App UI ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
 st.title("Customer Segmentation Analysis Dashboard")
+
+# ---- Section 1: Pre-existing Cluster Data ----
+st.header("Cluster Analysis with Existing Data")
 
 # Load dataset
 @st.cache_data
@@ -74,7 +77,7 @@ if missing_cols:
     st.error(f"Missing columns in dataset: {missing_cols}")
     st.stop()
 
-# Sidebar Filters for Historical Data
+# Sidebar Filters
 st.sidebar.header("Filter Options")
 cluster_type = st.sidebar.selectbox("Select Clustering Method", ["Cluster_gmm", "Cluster_k"])
 
@@ -110,10 +113,9 @@ ax_bar.set_ylabel("Number of Customers")
 ax_bar.set_title("Cluster Sizes")
 st.pyplot(fig_bar)
 
-# Define Colors for Cluster Deep Dive
+# ---- Cluster Deep Dive ----
 cluster_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
 
-# Cluster Deep Dive
 for cluster_label in sorted(df_filtered[cluster_type].unique()):
     st.markdown("---")
     st.subheader(f"Cluster {cluster_label} Analysis")
@@ -172,7 +174,7 @@ st.markdown("---")
 st.header("Feature Distribution Across Clusters")
 
 for feature in ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']:
-    st.subheader(f"{feature}")
+    st.subheader(f" {feature}")
 
     col1, col2 = st.columns(2)
 
@@ -192,11 +194,11 @@ for feature in ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_
         ax2.set_ylabel(feature)
         st.pyplot(fig2)
 
-# ---- New Customer Input Section ----
+# ---- Section 2: Analyze New Customer Data ----
 st.markdown("---")
-st.title("Analyze New Customer Data")
+st.header("Analyze New Customer Data")
 
-# Input form for new customer data
+# Input form
 with st.form(key='customer_form'):
     age = st.number_input('Age', min_value=0, max_value=100, value=32)
     income = st.number_input('Annual Income (£K)', min_value=0, max_value=500, value=70)
