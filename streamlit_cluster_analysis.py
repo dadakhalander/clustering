@@ -4,11 +4,12 @@ import joblib
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics.pairwise import cosine_similarity
-from plotly.subplots import make_subplots
 from sklearn.cluster import AgglomerativeClustering, DBSCAN
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+from sklearn.metrics.pairwise import cosine_similarity
+from plotly.subplots import make_subplots
 from scipy.cluster.hierarchy import linkage, dendrogram
+from sklearn.preprocessing import StandardScaler
 
 # ---- Load Pretrained Artifacts ----
 model = joblib.load("best_rf.pkl")
