@@ -247,14 +247,26 @@ elif section == "Analyze New Customer Data":
         analyze_new_customer(new_data, model, X_train, cluster_k_info)
 
 elif section == "Custom Clustering":
-    st.header(" Custom Clustering")
-    st.markdown("Let users experiment with their own clustering parameters.")
+    st.header("🔧 Custom Clustering")
+    st.markdown("Experiment with different clustering algorithms and parameters.")
 
-    method = st.selectbox("Choose Clustering Algorithm", ["Agglomerative", "DBSCAN"])
+    method = st.selectbox("Choose Clustering Algorithm", ["K-Means", "GMM", "Agglomerative", "DBSCAN"])
     data = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
 
-    if method == "Agglomerative":
+    if method in ["K-Means", "GMM", "Agglomerative"]:
         n_clusters = st.slider("Number of Clusters", 2, 10, 4)
+
+    if method == "K-Means":
+        from sklearn.cluster import KMeans
+        model = KMeans(n_clusters=n_clusters, random_state=42)
+        labels = model.fit_predict(data)
+
+    elif method == "GMM":
+        from sklearn.mixture import GaussianMixture
+        model = GaussianMixture(n_components=n_clusters, random_state=42)
+        labels = model.fit_predict(data)
+
+    elif method == "Agglomerative":
         model = AgglomerativeClustering(n_clusters=n_clusters)
         labels = model.fit_predict(data)
 
@@ -266,9 +278,11 @@ elif section == "Custom Clustering":
 
     df['Custom_Cluster'] = labels
 
-    st.subheader("Cluster Results")
+    st.subheader(" Cluster Results")
     st.write(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original', 'Custom_Cluster']].head())
 
     fig = px.scatter_3d(df, x='Age_original', y='Annual_Income (£K)_original', z='Spending_Score_original',
-                        color=df['Custom_Cluster'].astype(str), title="Custom Clustering Visualization")
+                        color=df['Custom_Cluster'].astype(str),
+                        title=" Custom Clustering 3D Visualization")
     st.plotly_chart(fig)
+
