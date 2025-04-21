@@ -3,14 +3,13 @@ import pandas as pd
 import joblib
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
-import plotly.express as px
 import seaborn as sns
-from sklearn.metrics.pairwise import cosine_similarity
-from plotly.subplots import make_subplots
-from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
+from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics.pairwise import cosine_similarity
+import plotly.express as px
+from plotly.subplots import make_subplots
 
 # ---- Load Pretrained Artifacts ----
 model = joblib.load("best_rf.pkl")
@@ -77,9 +76,30 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
     st.plotly_chart(fig)
 
+# ---- Function to apply clustering and get labels ----
+def apply_clustering(method, df):
+    X = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
+
+    if method == "K-Means":
+        model = KMeans(n_clusters=5, random_state=42)
+        labels = model.fit_predict(X)  # Use fit_predict directly
+        return labels, model
+    elif method == "GMM":
+        model = GaussianMixture(n_components=5, random_state=42)
+        labels = model.predict(X)  # Use predict method to get labels
+        return labels, model
+    elif method == "Agglomerative":
+        model = AgglomerativeClustering(n_clusters=5)
+        labels = model.fit_predict(X)  # Use fit_predict directly
+        return labels, model
+    elif method == "DBSCAN":
+        model = DBSCAN(eps=10, min_samples=5)
+        labels = model.fit_predict(X)  # Use fit_predict directly
+        return labels, model
+
 # ---- Streamlit App UI ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
-st.title(" Customer Segmentation Analysis Dashboard")
+st.title("Customer Segmentation Analysis Dashboard")
 
 # ---- Sidebar Navigation ----
 section = st.sidebar.radio(" Choose Section", ["Cluster Analysis", "Analyze New Customer Data", "Custom Clustering"])
@@ -90,35 +110,13 @@ def load_data():
 
 df = load_data()
 
-# ---- Advanced Filter Combinations ----
-st.sidebar.header("Advanced Filter Options")
-
-# Filter for Gender
-gender_filter = st.sidebar.multiselect("Select Gender", options=["Male", "Female"], default=["Male", "Female"])
-
-# Filter for Age Range
-age_filter_min = st.sidebar.slider("Min Age", min_value=int(df['Age_original'].min()), max_value=int(df['Age_original'].max()), value=20)
-age_filter_max = st.sidebar.slider("Max Age", min_value=int(df['Age_original'].min()), max_value=int(df['Age_original'].max()), value=60)
-
-# Apply filter to the dataset
-df_filtered = df[(df['Age_original'] >= age_filter_min) & (df['Age_original'] <= age_filter_max)]
-
-if "Male" not in gender_filter:
-    df_filtered = df_filtered[df_filtered['Gender_Male'] == 0]
-if "Female" not in gender_filter:
-    df_filtered = df_filtered[df_filtered['Gender_Female'] == 0]
-
-# Display the filtered data
-st.subheader(f"Filtered Data (Age: {age_filter_min}-{age_filter_max}, Gender: {', '.join(gender_filter)})")
-st.write(df_filtered)
-
 if section == "Cluster Analysis":
     st.header("Cluster Analysis with Existing Data")
 
     feature_importance_section = st.sidebar.checkbox("Show Feature Importance", False)
 
     if feature_importance_section:
-        with st.expander(" Feature Importance Chart"):
+        with st.expander("Feature Importance Chart"):
             st.subheader("Feature Importance Analysis")
             feature_importances = model.feature_importances_
             feature_names = X_train.columns
@@ -151,27 +149,7 @@ if section == "Cluster Analysis":
                      (df['Annual_Income (£K)_original'] >= income_range[0]) &
                      (df['Annual_Income (£K)_original'] <= income_range[1])]
 
-    def apply_clustering(method, df):
-        X = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
-
-        if method == "K-Means":
-            model = KMeans(n_clusters=5, random_state=42)
-            labels = model.fit_predict(X)
-            return labels, "KMeans"
-        elif method == "GMM":
-            model = GaussianMixture(n_components=5, random_state=42)
-            labels = model.fit_predict(X)
-            return labels, "GMM"
-        elif method == "Agglomerative":
-            model = AgglomerativeClustering(n_clusters=5)
-            labels = model.fit_predict(X)
-            return labels, "Agglomerative"
-        elif method == "DBSCAN":
-            model = DBSCAN(eps=10, min_samples=5)
-            labels = model.fit_predict(X)
-            return labels, "DBSCAN"
-
-    labels, label_col = apply_clustering(cluster_method, df_filtered)
+    labels, model = apply_clustering(cluster_method, df_filtered)
     df_filtered['Active_Cluster'] = labels
 
     st.markdown("### Clustering Quality Metrics")
@@ -190,49 +168,42 @@ if section == "Cluster Analysis":
     else:
         st.warning("⚠ Not enough clusters to compute metrics.")
 
-    # ---- Comparison of Metrics Across Algorithms ----
-    st.header("Clustering Quality Metric Comparison")
+    st.header("Cluster Ranking by Avg. Spending Score")
+    cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
+    st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
 
-    metrics = ["Silhouette Score", "Davies-Bouldin Index", "Calinski-Harabasz Score"]
-    algorithms = ["K-Means", "GMM", "Agglomerative", "DBSCAN"]
+    st.subheader("👥 Cluster Sizes")
+    cluster_counts = df_filtered['Active_Cluster'].value_counts().sort_index()
+    fig_bar, ax_bar = plt.subplots(figsize=(6, 4))
+    sns.barplot(x=cluster_counts.index, y=cluster_counts.values, palette="Set2", ax=ax_bar)
+    ax_bar.set_xlabel("Cluster")
+    ax_bar.set_ylabel("Number of Customers")
+    ax_bar.set_title("Cluster Sizes")
+    st.pyplot(fig_bar)
 
-    # Placeholder for storing metric scores
-    metric_scores = {algo: [] for algo in algorithms}
+elif section == "Analyze New Customer Data":
+    st.header("Analyze New Customer Data")
+    with st.form(key='customer_form'):
+        age = st.number_input('Age', min_value=0, max_value=100, value=32)
+        income = st.number_input('Annual Income (£K)', min_value=0, max_value=500, value=70)
+        spending_score = st.number_input('Spending Score', min_value=0, max_value=100, value=85)
+        gender = st.radio('⚧ Gender', ['Female', 'Male'], index=0)
+        submitted = st.form_submit_button("Analyze")
 
-    for algo in algorithms:
-        if algo == "K-Means":
-            model = KMeans(n_clusters=5, random_state=42)
-        elif algo == "GMM":
-            model = GaussianMixture(n_components=5, random_state=42)
-        elif algo == "Agglomerative":
-            model = AgglomerativeClustering(n_clusters=5)
-        else:  # DBSCAN
-            model = DBSCAN(eps=10, min_samples=5)
+    if submitted:
+        gender_female = 1 if gender == 'Female' else 0
+        gender_male = 1 if gender == 'Male' else 0
 
-        # Fit model and calculate metrics
-        if algo != "DBSCAN":
-            model.fit(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']])
-            labels = model.labels_
-        else:
-            labels = model.fit_predict(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']])
+        new_data = {
+            'Age_original': age,
+            'Annual_Income (£K)_original': income,
+            'Spending_Score_original': spending_score,
+            'Gender_Female': gender_female,
+            'Gender_Male': gender_male
+        }
 
-        # Calculate metrics
-        if len(set(labels)) > 1:
-            sil = silhouette_score(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']], labels)
-            db = davies_bouldin_score(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']], labels)
-            ch = calinski_harabasz_score(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']], labels)
+        analyze_new_customer(new_data, model, X_train, cluster_k_info)
 
-            metric_scores[algo] = [sil, db, ch]
-        else:
-            metric_scores[algo] = [None, None, None]  # In case metrics can't be computed
-
-    # Create a dataframe for plotting
-    metric_df = pd.DataFrame(metric_scores, index=metrics)
-
-    # Plotting the comparison of metric scores
-    fig, ax = plt.subplots(figsize=(10, 6))
-    metric_df.plot(kind='bar', ax=ax, color=["#1f77b4", "#ff7f0e", "#2ca02c"])
-    plt.title('Comparison of Clustering Algorithm Performance Metrics')
-    plt.ylabel('Metric Score')
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
+elif section == "Custom Clustering":
+    st.write("Custom Clustering Section Here.")
+    # Add custom clustering functionality if needed
