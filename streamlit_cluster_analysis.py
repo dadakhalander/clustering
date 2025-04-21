@@ -14,6 +14,9 @@ from scipy.cluster.hierarchy import linkage, dendrogram
 from io import BytesIO
 import base64
 
+# ---- Page Config MUST BE FIRST ----
+st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide", page_icon="📊")
+
 # ---- Load Pretrained Artifacts ----
 @st.cache_resource
 def load_model():
@@ -26,6 +29,8 @@ def load_train_data():
 @st.cache_resource
 def load_cluster_info():
     return joblib.load("cluster_k_info.pkl")
+
+# Rest of your code follows...
 
 model = load_model()
 X_train = load_train_data()
