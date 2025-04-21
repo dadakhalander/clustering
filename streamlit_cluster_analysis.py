@@ -19,7 +19,7 @@ import base64
 st.set_page_config(
     page_title="Customer Cluster Dashboard", 
     layout="wide", 
-    page_icon="📊",
+    page_icon="",
     initial_sidebar_state="expanded"
 )
 
@@ -55,7 +55,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
         4: "Value-Seeking Families"
     }
     
-    st.subheader(f"📊 Predicted Cluster: {predicted_cluster} - {cluster_desc.get(predicted_cluster, 'General Customers')}")
+    st.subheader(f" Predicted Cluster: {predicted_cluster} - {cluster_desc.get(predicted_cluster, 'General Customers')}")
     
     # Cluster statistics
     similar_customers = cluster_info[predicted_cluster].copy()
@@ -68,7 +68,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
     most_similar_customer = similar_customers.iloc[most_similar_index]
     
     # Cluster statistics
-    with st.expander("📈 Cluster Statistics"):
+    with st.expander(" Cluster Statistics"):
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Avg. Age", f"{similar_customers['Age_original'].mean():.1f} years")
@@ -107,7 +107,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
     fig = go.Figure(data=[trace1, trace2])
     fig.update_layout(
-        title=f'📊 Comparison: New Customer vs Cluster {predicted_cluster}',
+        title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
         polar=dict(
             radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1]),
             angularaxis=dict(tickmode='array', tickvals=list(range(len(X_train.columns))), ticktext=X_train.columns)
@@ -121,7 +121,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
     st.plotly_chart(fig, use_container_width=True)
     
     # Marketing recommendations based on cluster
-    st.subheader("🎯 Marketing Recommendations")
+    st.subheader(" Marketing Recommendations")
     recommendations = {
         0: ["Discount offers", "Value bundles", "Budget-friendly products"],
         1: ["Premium products", "Exclusive memberships", "Personal shopping services"],
@@ -167,7 +167,7 @@ def get_table_download_link(df, filename="clustering_results.csv"):
 
 # ---- Main App ----
 def main():
-    st.title("📊 Customer Segmentation Analysis Dashboard")
+    st.title(" Customer Segmentation Analysis Dashboard")
     
     # Load data and models
     model = load_model()
@@ -180,7 +180,7 @@ def main():
         st.title("Navigation")
         section = st.radio(
             "Choose Section", 
-            ["📊 Cluster Analysis", "👤 Analyze New Customer", "🔧 Custom Clustering", "📚 Data Explorer"],
+            [" Cluster Analysis", "👤 Analyze New Customer", "🔧 Custom Clustering", "📚 Data Explorer"],
             label_visibility="collapsed"
         )
 
@@ -192,8 +192,8 @@ def main():
         st.error(f"Missing columns in dataset: {missing_cols}")
         st.stop()
 
-    if section == "📊 Cluster Analysis":
-        st.header("📊 Cluster Analysis with Existing Data")
+    if section == " Cluster Analysis":
+        st.header(" Cluster Analysis with Existing Data")
         
         # Sidebar controls
         st.sidebar.header("Filter Options")
@@ -202,7 +202,7 @@ def main():
         # Feature importance section
         feature_importance_section = st.sidebar.checkbox("Show Feature Importance", True)
         if feature_importance_section:
-            with st.expander("📊 Feature Importance Analysis", expanded=True):
+            with st.expander(" Feature Importance Analysis", expanded=True):
                 feature_importances = model.feature_importances_
                 feature_names = X_train.columns
                 feature_df = pd.DataFrame({
@@ -274,7 +274,7 @@ def main():
         df_filtered['Active_Cluster'] = labels
         
         # Cluster quality metrics
-        st.markdown("### 📈 Clustering Quality Metrics")
+        st.markdown("###  Clustering Quality Metrics")
         valid_idx = df_filtered['Active_Cluster'] != -1
         X_valid = df_filtered[valid_idx][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
         labels_valid = df_filtered[valid_idx]['Active_Cluster']
@@ -295,7 +295,7 @@ def main():
         
         # Hierarchical dendrogram
         if cluster_method == "Agglomerative":
-            with st.expander("🌳 Hierarchical Dendrogram", expanded=True):
+            with st.expander(" Hierarchical Dendrogram", expanded=True):
                 X = df_filtered[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
                 Z = linkage(X, method='ward')
                 fig_dendro, ax = plt.subplots(figsize=(12, 5))
@@ -306,9 +306,9 @@ def main():
                 st.pyplot(fig_dendro)
         
         # Cluster statistics
-        st.header("📊 Cluster Statistics")
+        st.header(" Cluster Statistics")
         
-        tab1, tab2, tab3 = st.tabs(["📊 Overview", "📈 Distributions", "📊 Comparison"])
+        tab1, tab2, tab3 = st.tabs([" Overview", " Distributions", " Comparison"])
         
         with tab1:
             st.subheader("👥 Cluster Sizes")
@@ -321,12 +321,12 @@ def main():
                              title="Customer Distribution Across Clusters")
             st.plotly_chart(fig_bar, use_container_width=True)
             
-            st.subheader("💰 Cluster Ranking by Avg. Spending Score")
+            st.subheader(" Cluster Ranking by Avg. Spending Score")
             cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
             st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
         
         with tab2:
-            st.subheader("📊 Feature Distributions by Cluster")
+            st.subheader(" Feature Distributions by Cluster")
             feature = st.selectbox("Select feature to visualize", 
                                   ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original'])
             
@@ -336,7 +336,7 @@ def main():
             st.plotly_chart(fig_dist, use_container_width=True)
         
         with tab3:
-            st.subheader("📈 Cluster Comparison")
+            st.subheader(" Cluster Comparison")
             x_axis = st.selectbox("X-axis feature", 
                                  ['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original'])
             y_axis = st.selectbox("Y-axis feature", 
@@ -351,7 +351,7 @@ def main():
             st.plotly_chart(fig_scatter, use_container_width=True)
         
         # Detailed cluster analysis
-        st.header("🔍 Detailed Cluster Analysis")
+        st.header(" Detailed Cluster Analysis")
         cluster_descriptions = get_cluster_descriptions()
         
         for cluster_label in sorted(df_filtered['Active_Cluster'].unique()):
@@ -361,7 +361,7 @@ def main():
             cluster_data = df_filtered[df_filtered['Active_Cluster'] == cluster_label]
             desc = cluster_descriptions.get(cluster_label % 5, {"name": f"Cluster {cluster_label}", "desc": ""})
             
-            with st.expander(f"🔍 {desc['name']} - Cluster {cluster_label}: {desc['desc']}", expanded=False):
+            with st.expander(f" {desc['name']} - Cluster {cluster_label}: {desc['desc']}", expanded=False):
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Customers", len(cluster_data))
@@ -371,7 +371,7 @@ def main():
                     st.metric("Avg. Income", f"£{cluster_data['Annual_Income (£K)_original'].mean():.1f}K")
                 
                 # Create tabs for different visualizations
-                tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "👥 Demographics", "💰 Spending", "📈 Trends"])
+                tab1, tab2, tab3, tab4 = st.tabs([" Overview", " Demographics", " Spending", " Trends"])
                 
                 with tab1:
                     fig = make_subplots(
@@ -445,11 +445,11 @@ def main():
                     # Time-based analysis would go here if we had date data
         
         # Data export
-        st.markdown("### 💾 Export Data")
+        st.markdown("###  Export Data")
         st.markdown(get_table_download_link(df_filtered, "filtered_clusters.csv"), unsafe_allow_html=True)
 
-    elif section == "👤 Analyze New Customer":
-        st.header("👤 Analyze New Customer Data")
+    elif section == " Analyze New Customer":
+        st.header(" Analyze New Customer Data")
         st.markdown("Enter customer details to predict their cluster and find similar customers.")
         
         with st.form(key='customer_form'):
@@ -490,8 +490,8 @@ def main():
 
             analyze_new_customer(new_data, model, X_train, cluster_k_info)
 
-    elif section == "🔧 Custom Clustering":
-        st.header("🔧 Custom Clustering")
+    elif section == " Custom Clustering":
+        st.header(" Custom Clustering")
         st.markdown("Experiment with different clustering algorithms and parameters.")
         
         # Algorithm selection
@@ -499,7 +499,7 @@ def main():
         data = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
         
         # Parameter controls
-        with st.expander("⚙️ Algorithm Parameters", expanded=True):
+        with st.expander(" Algorithm Parameters", expanded=True):
             if method in ["K-Means", "GMM", "Agglomerative"]:
                 n_clusters = st.slider("Number of Clusters", 2, 10, 4)
             
@@ -547,7 +547,7 @@ def main():
                 labels_valid = df[valid_idx]['Custom_Cluster']
                 
                 if len(set(labels_valid)) > 1:
-                    st.subheader("📊 Clustering Quality Metrics")
+                    st.subheader(" Clustering Quality Metrics")
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         st.metric("Silhouette Score", f"{silhouette_score(X_valid, labels_valid):.2f}")
@@ -557,7 +557,7 @@ def main():
                         st.metric("Calinski-Harabasz", f"{calinski_harabasz_score(X_valid, labels_valid):.2f}")
                 
                 # Cluster visualization
-                st.subheader("📊 Cluster Visualization")
+                st.subheader(" Cluster Visualization")
                 
                 tab1, tab2 = st.tabs(["3D Scatter Plot", "2D Projections"])
                 
@@ -595,7 +595,7 @@ def main():
                     st.plotly_chart(fig_income_spend, use_container_width=True)
                 
                 # Cluster statistics
-                st.subheader("📈 Cluster Statistics")
+                st.subheader(" Cluster Statistics")
                 cluster_stats = df.groupby('Custom_Cluster').agg({
                     'Age_original': ['mean', 'std', 'count'],
                     'Annual_Income (£K)_original': ['mean', 'std'],
@@ -606,20 +606,20 @@ def main():
                 # Export results
                 st.markdown(get_table_download_link(df, "custom_clustering_results.csv"), unsafe_allow_html=True)
 
-    elif section == "📚 Data Explorer":
-        st.header("📚 Data Explorer")
+    elif section == " Data Explorer":
+        st.header(" Data Explorer")
         st.markdown("Explore and visualize the raw customer data.")
         
         # Show raw data
-        with st.expander("🔍 View Raw Data", expanded=True):
+        with st.expander(" View Raw Data", expanded=True):
             st.dataframe(df, use_container_width=True)
         
         # Data summary
-        st.subheader("📊 Data Summary")
+        st.subheader(" Data Summary")
         st.write(df.describe())
         
         # Interactive visualizations
-        st.subheader("📈 Interactive Visualizations")
+        st.subheader(" Interactive Visualizations")
         
         viz_type = st.selectbox("Visualization Type", 
                                ["Scatter Plot", "Histogram", "Box Plot", "Violin Plot", "Correlation Matrix"])
@@ -669,7 +669,7 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
         
         # Data export
-        st.markdown("### 💾 Export Data")
+        st.markdown("###  Export Data")
         st.markdown(get_table_download_link(df, "customer_data.csv"), unsafe_allow_html=True)
 
     # ---- Footer ----
