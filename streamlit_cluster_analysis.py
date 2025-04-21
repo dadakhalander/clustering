@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from scipy.cluster.hierarchy import linkage, dendrogram
+from sklearn.preprocessing import StandardScaler
 
 # ---- Load Pretrained Artifacts ----
 model = joblib.load("best_rf.pkl")
@@ -155,9 +155,13 @@ if section == "Cluster Analysis":
         X = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
 
         if method == "K-Means":
-            return df['Cluster_k'], "Cluster_k"
+            model = KMeans(n_clusters=5, random_state=42)
+            labels = model.fit_predict(X)
+            return labels, "KMeans"
         elif method == "GMM":
-            return df['Cluster_gmm'], "Cluster_gmm"
+            model = GaussianMixture(n_components=5, random_state=42)
+            labels = model.fit_predict(X)
+            return labels, "GMM"
         elif method == "Agglomerative":
             model = AgglomerativeClustering(n_clusters=5)
             labels = model.fit_predict(X)
@@ -170,7 +174,7 @@ if section == "Cluster Analysis":
     labels, label_col = apply_clustering(cluster_method, df_filtered)
     df_filtered['Active_Cluster'] = labels
 
-    st.markdown("###  Clustering Quality Metrics")
+    st.markdown("### Clustering Quality Metrics")
     valid_idx = df_filtered['Active_Cluster'] != -1
     X_valid = df_filtered[valid_idx][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
     labels_valid = df_filtered[valid_idx]['Active_Cluster']
@@ -197,9 +201,9 @@ if section == "Cluster Analysis":
 
     for algo in algorithms:
         if algo == "K-Means":
-            model = KMeans(n_clusters=5)
+            model = KMeans(n_clusters=5, random_state=42)
         elif algo == "GMM":
-            model = GaussianMixture(n_components=5)
+            model = GaussianMixture(n_components=5, random_state=42)
         elif algo == "Agglomerative":
             model = AgglomerativeClustering(n_clusters=5)
         else:  # DBSCAN
@@ -232,4 +236,3 @@ if section == "Cluster Analysis":
     plt.ylabel('Metric Score')
     plt.xticks(rotation=45)
     st.pyplot(fig)
-
