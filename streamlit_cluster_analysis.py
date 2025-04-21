@@ -221,13 +221,7 @@ def main():
     elif section == "📚 Data Explorer":
         data_explorer_section(df)
 
-    # ---- Footer ----
-    st.markdown("---")
-    st.markdown("""
-        **Customer Segmentation Dashboard**  
-        *Powered by Streamlit and Scikit-learn*  
-        [GitHub Repository](#) | [Documentation](#)
-    """)
+ 
 
 def cluster_analysis_section(df, model, X_train):
     st.header("📊 Cluster Analysis with Existing Data")
