@@ -207,3 +207,70 @@ elif section == "Analyze New Customer Data":
 elif section == "Custom Clustering":
     st.write("Custom Clustering Section Here.")
     # Add custom clustering functionality if needed
+
+elif section == "Custom Clustering":
+    st.header("Custom Clustering Functionality")
+
+    # Allow the user to select the clustering method
+    clustering_method = st.selectbox("Choose Clustering Algorithm", 
+                                    ["K-Means", "Agglomerative Clustering", "Gaussian Mixture", "DBSCAN"])
+
+    # Custom number of clusters input for methods like KMeans or Agglomerative
+    n_clusters = st.number_input("Number of Clusters", min_value=2, max_value=10, value=5, step=1)
+
+    # If DBSCAN is selected, allow the user to specify eps and min_samples
+    if clustering_method == "DBSCAN":
+        eps = st.number_input("Epsilon (eps)", min_value=0.1, max_value=10.0, value=0.5, step=0.1)
+        min_samples = st.number_input("Minimum Samples (min_samples)", min_value=1, max_value=10, value=5, step=1)
+
+    # Optionally, allow the user to select features
+    features = st.multiselect("Select Features for Clustering", options=X_train.columns.tolist(), 
+                              default=['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original'])
+
+    # Button to perform the clustering
+    perform_clustering = st.button("Perform Clustering")
+
+    if perform_clustering:
+        if clustering_method == "K-Means":
+            model = KMeans(n_clusters=n_clusters, random_state=42)
+            labels = model.fit_predict(df[features])
+            st.write(f"Cluster centers: {model.cluster_centers_}")
+
+        elif clustering_method == "Agglomerative Clustering":
+            model = AgglomerativeClustering(n_clusters=n_clusters)
+            labels = model.fit_predict(df[features])
+            st.write(f"Linkage matrix: {model.children_}")
+
+        elif clustering_method == "Gaussian Mixture":
+            model = GaussianMixture(n_components=n_clusters, random_state=42)
+            labels = model.fit_predict(df[features])
+            st.write(f"Means of Gaussian Components: {model.means_}")
+
+        elif clustering_method == "DBSCAN":
+            model = DBSCAN(eps=eps, min_samples=min_samples)
+            labels = model.fit_predict(df[features])
+
+        # Add the cluster labels to the dataframe
+        df['Custom_Cluster'] = labels
+
+        # Visualize the clusters using a scatter plot
+        fig, ax = plt.subplots(figsize=(10, 6))
+        scatter = ax.scatter(df[features[0]], df[features[1]], c=labels, cmap="viridis")
+        ax.set_xlabel(features[0])
+        ax.set_ylabel(features[1])
+        ax.set_title(f"{clustering_method} Clustering")
+
+        # Add a color bar to indicate clusters
+        fig.colorbar(scatter)
+        st.pyplot(fig)
+
+        # Show cluster size information
+        cluster_sizes = df['Custom_Cluster'].value_counts()
+        st.write(f"Cluster Sizes: {cluster_sizes}")
+
+        # Optionally, show the cluster centroids or other metrics
+        if clustering_method == "K-Means":
+            st.write(f"Cluster Centers (K-Means): {model.cluster_centers_}")
+        elif clustering_method == "Gaussian Mixture":
+            st.write(f"Gaussian Component Means: {model.means_}")
+
