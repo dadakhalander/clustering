@@ -16,15 +16,6 @@ model = joblib.load("best_rf.pkl")
 X_train = joblib.load("X_train.pkl")
 cluster_k_info = joblib.load("cluster_k_info.pkl")
 
-# ---- Define Cluster Names ----
-cluster_names = {
-    0: "Young High Spenders",
-    1: "Low Income Middle Age",
-    2: "Retired High Income",
-    3: "Budget Shoppers",
-    4: "Young Low Income"
-}
-
 # ---- Function to Analyze New Customer ----
 def analyze_new_customer(new_data, model, X_train, cluster_info):
     new_customer = pd.DataFrame([new_data])
@@ -34,8 +25,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
     new_customer['Gender_Male'] = new_customer['Gender_Male'].astype(int)
 
     predicted_cluster = model.predict(new_customer)[0]
-    cluster_name = cluster_names.get(predicted_cluster, 'Unknown')
-    st.subheader(f"Predicted Cluster: {predicted_cluster} ({cluster_name})")
+    st.subheader(f" Predicted Cluster: {predicted_cluster}")
 
     similar_customers = cluster_info[predicted_cluster].copy()
     similar_customers['Gender_Female'] = similar_customers['Gender_Female'].astype(int)
@@ -45,7 +35,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
     most_similar_index = sims.argmax()
     most_similar_customer = similar_customers.iloc[most_similar_index]
 
-    st.subheader("Most Similar Customer in Cluster:")
+    st.subheader(" Most Similar Customer in Cluster:")
     st.dataframe(most_similar_customer[X_train.columns])
 
     cluster_mean = similar_customers[X_train.columns].mean()
@@ -74,7 +64,7 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
     fig = go.Figure(data=[trace1, trace2])
     fig.update_layout(
-        title=f'Comparison: New Customer vs Cluster {predicted_cluster} ({cluster_name})',
+        title=f' Comparison: New Customer vs Cluster {predicted_cluster}',
         polar=dict(
             radialaxis=dict(visible=True, range=[0, max(cluster_mean_max, new_customer_max) + 1]),
             angularaxis=dict(tickmode='array', tickvals=list(range(len(X_train.columns))), ticktext=X_train.columns)
@@ -88,10 +78,10 @@ def analyze_new_customer(new_data, model, X_train, cluster_info):
 
 # ---- Streamlit App UI ----
 st.set_page_config(page_title="Customer Cluster Dashboard", layout="wide")
-st.title("Customer Segmentation Analysis Dashboard")
+st.title(" Customer Segmentation Analysis Dashboard")
 
 # ---- Sidebar Navigation ----
-section = st.sidebar.radio("Choose Section", ["Cluster Analysis", "Analyze New Customer Data", "Custom Clustering"])
+section = st.sidebar.radio(" Choose Section", ["Cluster Analysis", "Analyze New Customer Data", "Custom Clustering"])
 
 @st.cache_data
 def load_data():
@@ -105,7 +95,7 @@ if section == "Cluster Analysis":
     feature_importance_section = st.sidebar.checkbox("Show Feature Importance", False)
 
     if feature_importance_section:
-        with st.expander("Feature Importance Chart"):
+        with st.expander(" Feature Importance Chart"):
             st.subheader("Feature Importance Analysis")
             feature_importances = model.feature_importances_
             feature_names = X_train.columns
@@ -125,7 +115,7 @@ if section == "Cluster Analysis":
         st.error(f"Missing columns in dataset: {missing_cols}")
         st.stop()
 
-    st.sidebar.header("Filter Options")
+    st.sidebar.header(" Filter Options")
     cluster_method = st.sidebar.selectbox("Clustering Method", ["K-Means", "GMM", "Agglomerative", "DBSCAN"])
 
     st.sidebar.markdown("### Demographics")
@@ -157,7 +147,7 @@ if section == "Cluster Analysis":
     labels, label_col = apply_clustering(cluster_method, df_filtered)
     df_filtered['Active_Cluster'] = labels
 
-    st.markdown("### Clustering Quality Metrics")
+    st.markdown("###  Clustering Quality Metrics")
     valid_idx = df_filtered['Active_Cluster'] != -1
     X_valid = df_filtered[valid_idx][['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
     labels_valid = df_filtered[valid_idx]['Active_Cluster']
@@ -174,14 +164,14 @@ if section == "Cluster Analysis":
         st.warning("⚠ Not enough clusters to compute metrics.")
 
     if cluster_method == "Agglomerative":
-        st.markdown("### Hierarchical Dendrogram")
+        st.markdown("###  Hierarchical Dendrogram")
         X = df_filtered[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
         Z = linkage(X, method='ward')
         fig_dendro, ax = plt.subplots(figsize=(10, 4))
         dendrogram(Z, truncate_mode='level', p=5, ax=ax)
         st.pyplot(fig_dendro)
 
-    st.header("Cluster Ranking by Avg. Spending Score")
+    st.header(" Cluster Ranking by Avg. Spending Score")
     cluster_spending = df_filtered.groupby('Active_Cluster')['Spending_Score_original'].mean().sort_values(ascending=False)
     st.dataframe(cluster_spending.rename("Mean Spending Score").reset_index(), use_container_width=True)
 
@@ -227,7 +217,7 @@ if section == "Cluster Analysis":
                                     line_color='orange'), row=2, col=2)
 
             fig.update_layout(
-                title_text=f'Cluster {cluster_label} Detailed Analysis',
+                title_text=f' Cluster {cluster_label} Detailed Analysis',
                 showlegend=False, height=900, width=1000
             )
 
@@ -237,38 +227,61 @@ elif section == "Analyze New Customer Data":
     st.header("Analyze New Customer Data")
     with st.form(key='customer_form'):
         age = st.number_input('Age', min_value=0, max_value=100, value=32)
-        income = st.number_input('Annual Income (£K)', min_value=0, max_value=500, value=50)
-        spending_score = st.number_input('Spending Score', min_value=0, max_value=100, value=50)
-        gender = st.selectbox('Gender', ['Male', 'Female'])
+        income = st.number_input('Annual Income (£K)', min_value=0, max_value=500, value=70)
+        spending_score = st.number_input('Spending Score', min_value=0, max_value=100, value=85)
+        gender = st.radio('⚧ Gender', ['Female', 'Male'], index=0)
+        submitted = st.form_submit_button("Analyze")
 
+    if submitted:
         gender_female = 1 if gender == 'Female' else 0
         gender_male = 1 if gender == 'Male' else 0
 
-        submit_button = st.form_submit_button(label='Analyze Customer')
+        new_data = {
+            'Age_original': age,
+            'Annual_Income (£K)_original': income,
+            'Spending_Score_original': spending_score,
+            'Gender_Female': gender_female,
+            'Gender_Male': gender_male
+        }
 
-        if submit_button:
-            new_data = {
-                'Age_original': age,
-                'Annual_Income (£K)_original': income,
-                'Spending_Score_original': spending_score,
-                'Gender_Female': gender_female,
-                'Gender_Male': gender_male
-            }
-            analyze_new_customer(new_data, model, X_train, cluster_k_info)
+        analyze_new_customer(new_data, model, X_train, cluster_k_info)
 
 elif section == "Custom Clustering":
-    st.header("Custom Clustering")
-    st.markdown("You can create custom clusters by selecting clustering methods and metrics.")
+    st.header(" Custom Clustering")
+    st.markdown("Experiment with different clustering algorithms and parameters.")
 
-    custom_method = st.selectbox("Choose Clustering Method", ["Agglomerative", "K-Means", "DBSCAN"])
-    custom_n_clusters = st.slider("Number of Clusters", 2, 10, 5)
+    method = st.selectbox("Choose Clustering Algorithm", ["K-Means", "GMM", "Agglomerative", "DBSCAN"])
+    data = df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]
 
-    if custom_method == "Agglomerative":
-        cluster_model = AgglomerativeClustering(n_clusters=custom_n_clusters)
-    elif custom_method == "K-Means":
-        cluster_model = KMeans(n_clusters=custom_n_clusters)
-    else:
-        cluster_model = DBSCAN()
+    if method in ["K-Means", "GMM", "Agglomerative"]:
+        n_clusters = st.slider("Number of Clusters", 2, 10, 4)
 
-    st.write("Clustering Results")
-    st.write(cluster_model.fit(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original']]))
+    if method == "K-Means":
+        from sklearn.cluster import KMeans
+        model = KMeans(n_clusters=n_clusters, random_state=42)
+        labels = model.fit_predict(data)
+
+    elif method == "GMM":
+        from sklearn.mixture import GaussianMixture
+        model = GaussianMixture(n_components=n_clusters, random_state=42)
+        labels = model.fit_predict(data)
+
+    elif method == "Agglomerative":
+        model = AgglomerativeClustering(n_clusters=n_clusters)
+        labels = model.fit_predict(data)
+
+    elif method == "DBSCAN":
+        eps = st.slider("Epsilon (eps)", 1.0, 20.0, 10.0)
+        min_samples = st.slider("Minimum Samples", 1, 10, 5)
+        model = DBSCAN(eps=eps, min_samples=min_samples)
+        labels = model.fit_predict(data)
+
+    df['Custom_Cluster'] = labels
+
+    st.subheader(" Cluster Results")
+    st.write(df[['Age_original', 'Annual_Income (£K)_original', 'Spending_Score_original', 'Custom_Cluster']].head())
+
+    fig = px.scatter_3d(df, x='Age_original', y='Annual_Income (£K)_original', z='Spending_Score_original',
+                        color=df['Custom_Cluster'].astype(str),
+                        title=" Custom Clustering 3D Visualization")
+    st.plotly_chart(fig)
