@@ -672,13 +672,7 @@ def main():
         st.markdown("###  Export Data")
         st.markdown(get_table_download_link(df, "customer_data.csv"), unsafe_allow_html=True)
 
-    # ---- Footer ----
-    st.markdown("---")
-    st.markdown("""
-        **Customer Segmentation Dashboard**  
-        *Powered by Streamlit and Scikit-learn*  
-        [GitHub Repository](#) | [Documentation](#)
-    """)
+    
 
 if __name__ == "__main__":
     main()
