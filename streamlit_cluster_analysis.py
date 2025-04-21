@@ -184,42 +184,6 @@ if section == "Cluster Analysis":
     ax_bar.set_title("Cluster Sizes")
     st.pyplot(fig_bar)
 
-    # ---- New: Explanation Table for Cluster Visualizations ----
-    st.subheader("Explanation of Cluster Visualizations")
-    st.markdown("The following table describes the four visualizations displayed for each cluster, providing insights into spending behavior, gender composition, age, and income distribution.")
-    
-    explanation_data = [
-        {
-            "Subplot Position": "Row 1, Column 1",
-            "Visualization Type": "Histogram",
-            "Title": f"Spending Score - Cluster {{cluster_label}}",
-            "Description": "A histogram of the Spending_Score_original values for customers in the cluster, with 10 bins. The bars are colored sky blue.",
-            "Purpose and Insights": "Shows the distribution of spending scores within the cluster. Reveals whether the cluster consists of high, medium, or low spenders. High peaks indicate common spending score ranges; a right-skewed histogram suggests many customers have lower spending scores."
-        },
-        {
-            "Subplot Position": "Row 1, Column 2",
-            "Visualization Type": "Pie Chart",
-            "Title": f"Gender Split - Cluster {{cluster_label}}",
-            "Description": "A pie chart showing the proportion of male and female customers based on the Gender_Male column (1 for Male, 0 for Female). Colors are sky blue for males and light coral for females, with percentage and gender labels.",
-            "Purpose and Insights": "Visualizes the gender composition of the cluster. Indicates whether the cluster is predominantly male, female, or balanced. A pie chart showing 70% female suggests a female-dominated segment, influencing marketing strategies."
-        },
-        {
-            "Subplot Position": "Row 2, Column 1",
-            "Visualization Type": "Box Plot",
-            "Title": f"Age Box Plot - Cluster {{cluster_label}}",
-            "Description": "A box plot of Age_original values, colored light green. It includes the median, quartiles, whiskers, and displays the standard deviation (mean and spread).",
-            "Purpose and Insights": "Summarizes the age distribution within the cluster. Shows median age, variability, and outliers. A narrow box indicates similar ages, while outliers highlight unusual cases (e.g., very young or old customers)."
-        },
-        {
-            "Subplot Position": "Row 2, Column 2",
-            "Visualization Type": "Violin Plot",
-            "Title": f"Income Violin - Cluster {{cluster_label}}",
-            "Description": "A violin plot of Annual_Income (£K)_original, colored orange. It includes a box plot inside, shows the mean line, and visualizes the kernel density estimation of income distribution.",
-            "Purpose and Insights": "Depicts the distribution and density of incomes. The violin's width indicates density at different income levels; a bimodal violin suggests two income subgroups. The embedded box plot provides median and quartiles, with the mean line highlighting average income."
-        }
-    ]
-    st.table(explanation_data)
-
     if cluster_method != "DBSCAN":
         for cluster_label in sorted(df_filtered['Active_Cluster'].unique()):
             cluster_data = df_filtered[df_filtered['Active_Cluster'] == cluster_label]
